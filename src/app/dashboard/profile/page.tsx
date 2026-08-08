@@ -18,11 +18,24 @@ export default async function DashboardProfilePage() {
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
   if (!profile) redirect("/login");
 
+  let canBrand = false;
+  if (profile.account_type === "business") {
+    const { data: planRow } = await supabase
+      .from("profiles")
+      .select("subscription_plans(allows_storefront_branding)")
+      .eq("id", user.id)
+      .single();
+    const plan = (
+      planRow as unknown as { subscription_plans: { allows_storefront_branding: boolean } | null } | null
+    )?.subscription_plans;
+    canBrand = plan?.allows_storefront_branding ?? false;
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-black text-slate-900">Profile</h1>
       <div className="mt-8 max-w-xl rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
-        <ProfileForm profile={profile} />
+        <ProfileForm profile={profile} canBrand={canBrand} />
       </div>
     </div>
   );

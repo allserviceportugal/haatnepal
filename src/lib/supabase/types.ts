@@ -17,6 +17,9 @@ export type Profile = {
   subscription_plan_id: string | null;
   rating_avg: number;
   rating_count: number;
+  business_description: string | null;
+  logo_url: string | null;
+  cover_image_url: string | null;
   created_at: string;
 };
 

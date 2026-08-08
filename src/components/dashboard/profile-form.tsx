@@ -3,9 +3,10 @@
 import { useActionState } from "react";
 import { NEPAL_DISTRICTS } from "@/lib/constants/locations";
 import { updateProfileAction } from "@/lib/actions/profile";
+import { BrandingUploader } from "@/components/branding-uploader";
 import type { Profile } from "@/lib/supabase/types";
 
-export function ProfileForm({ profile }: { profile: Profile }) {
+export function ProfileForm({ profile, canBrand }: { profile: Profile; canBrand: boolean }) {
   const [state, formAction, isPending] = useActionState(updateProfileAction, {});
 
   return (
@@ -76,6 +77,57 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
         />
       </div>
+
+      {profile.account_type === "business" && (
+        <div className="border-t border-slate-200 pt-5">
+          <h2 className="text-sm font-bold uppercase tracking-[0.1em] text-slate-500">
+            Storefront branding
+          </h2>
+
+          {!canBrand && (
+            <p className="mt-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700">
+              Logo, cover photo, and a business description are available on the Pro plan and above.{" "}
+              <a href="/dashboard/plan" className="font-semibold underline">
+                Upgrade your plan
+              </a>{" "}
+              to set up your storefront.
+            </p>
+          )}
+
+          <fieldset disabled={!canBrand} className="mt-4 space-y-4 disabled:opacity-50">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <BrandingUploader
+                userId={profile.id}
+                folder="profile/logo"
+                fieldName="logoUrl"
+                initialUrl={profile.logo_url}
+                label="Logo"
+                aspectClassName="aspect-square"
+              />
+              <BrandingUploader
+                userId={profile.id}
+                folder="profile/cover"
+                fieldName="coverImageUrl"
+                initialUrl={profile.cover_image_url}
+                label="Cover photo"
+                aspectClassName="aspect-video"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Business description</label>
+              <textarea
+                name="businessDescription"
+                defaultValue={profile.business_description ?? ""}
+                maxLength={500}
+                rows={4}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                placeholder="Tell buyers about your business..."
+              />
+            </div>
+          </fieldset>
+        </div>
+      )}
 
       <button
         type="submit"

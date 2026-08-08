@@ -23,11 +23,27 @@ export async function updateProfileAction(
     displayName: formData.get("displayName"),
     district: formData.get("district"),
     city: formData.get("city"),
+    businessDescription: formData.get("businessDescription"),
+    logoUrl: formData.get("logoUrl"),
+    coverImageUrl: formData.get("coverImageUrl"),
   });
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Please check the form and try again." };
   }
+
+  // Re-check the storefront-branding entitlement server-side (not just in
+  // the UI) so the restriction can't be bypassed by posting the form
+  // directly — mirrors featureListingAction's plan-lookup pattern.
+  const { data: profileRow } = await supabase
+    .from("profiles")
+    .select("account_type, subscription_plans(allows_storefront_branding)")
+    .eq("id", user.id)
+    .single();
+  const plan = (
+    profileRow as unknown as { subscription_plans: { allows_storefront_branding: boolean } | null } | null
+  )?.subscription_plans;
+  const canBrand = profileRow?.account_type === "business" && (plan?.allows_storefront_branding ?? false);
 
   const { error } = await supabase
     .from("profiles")
@@ -35,6 +51,13 @@ export async function updateProfileAction(
       display_name: parsed.data.displayName,
       district: parsed.data.district || null,
       city: parsed.data.city || null,
+      ...(canBrand
+        ? {
+            business_description: parsed.data.businessDescription || null,
+            logo_url: parsed.data.logoUrl || null,
+            cover_image_url: parsed.data.coverImageUrl || null,
+          }
+        : {}),
     })
     .eq("id", user.id);
 
