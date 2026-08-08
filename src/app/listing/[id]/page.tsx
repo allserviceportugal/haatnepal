@@ -191,9 +191,16 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
           {listing.profiles && !isOwner && (
             <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">
-                Seller
-              </h2>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  Seller
+                </h2>
+                {listing.profiles.account_type === "business" && (
+                  <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-orange-600">
+                    Business
+                  </span>
+                )}
+              </div>
               <Link
                 href={`/u/${listing.profiles.id}`}
                 className="mt-3 block text-lg font-bold text-slate-900 hover:text-orange-600"
@@ -205,6 +212,14 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                   ? `★ ${listing.profiles.rating_avg.toFixed(1)} (${listing.profiles.rating_count})`
                   : "No ratings yet"}
               </p>
+              <Link
+                href={`/u/${listing.profiles.id}`}
+                className="mt-3 block text-center text-sm font-semibold text-orange-600 hover:text-orange-700"
+              >
+                {listing.profiles.account_type === "business"
+                  ? "View business profile & all listings →"
+                  : "View profile & other listings →"}
+              </Link>
               <form action={startConversationAction.bind(null, listing.id)} className="mt-4">
                 <button
                   type="submit"

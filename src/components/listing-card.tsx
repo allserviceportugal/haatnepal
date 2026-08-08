@@ -35,11 +35,18 @@ export function ListingCard({ listing }: { listing: ListingWithRelations }) {
           </svg>
         </span>
 
-        {listing.listing_type === "fixed_price" && (
-          <span className="absolute left-2 top-2 rounded bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-            Buy now
-          </span>
-        )}
+        <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
+          {listing.listing_type === "fixed_price" && (
+            <span className="rounded bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+              Buy now
+            </span>
+          )}
+          {listing.profiles?.account_type === "business" && (
+            <span className="rounded bg-slate-900 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+              Business
+            </span>
+          )}
+        </div>
         {listing.status === "sold" && (
           <span className="absolute inset-x-2 bottom-2 rounded bg-slate-900/90 px-1.5 py-0.5 text-center text-[10px] font-bold uppercase tracking-wide text-white">
             Sold

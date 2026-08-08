@@ -45,12 +45,30 @@ export function ListingForm({
     [categories, topLevelId]
   );
 
-  const attributesForCategory = useMemo(
-    () => categoryAttributes.filter((a) => a.category_id === topLevelId),
-    [categoryAttributes, topLevelId]
-  );
-
   const effectiveCategoryId = subcategories.length > 0 ? subcategoryId : topLevelId;
+
+  const categoriesById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+
+  // Walk up from the chosen (sub)category to the nearest ancestor that has
+  // attributes defined, so a specific leaf like "Desktop Computers" gets its
+  // own fields while a leaf nobody has curated yet (e.g. "Cars") still shows
+  // its department's generic fields (Brand/Model/Year/...).
+  const resolvedAttributeCategoryId = useMemo(() => {
+    let currentId: string | null = effectiveCategoryId || null;
+    while (currentId) {
+      const hasAttrs = categoryAttributes.some((a) => a.category_id === currentId);
+      if (hasAttrs) return currentId;
+      currentId = categoriesById.get(currentId)?.parent_id ?? null;
+    }
+    return null;
+  }, [effectiveCategoryId, categoryAttributes, categoriesById]);
+
+  const attributesForCategory = resolvedAttributeCategoryId
+    ? categoryAttributes.filter((a) => a.category_id === resolvedAttributeCategoryId)
+    : [];
+  const sourceCategoryName = resolvedAttributeCategoryId
+    ? categoriesById.get(resolvedAttributeCategoryId)?.name
+    : undefined;
 
   return (
     <form action={formAction} className="space-y-6">
@@ -197,7 +215,7 @@ export function ListingForm({
       {attributesForCategory.length > 0 && (
         <div>
           <label className="block text-sm font-semibold text-slate-700">
-            {topLevelCategories.find((c) => c.id === topLevelId)?.name} details
+            {sourceCategoryName ?? topLevelCategories.find((c) => c.id === topLevelId)?.name} details
           </label>
           <div className="mt-2 grid gap-4 sm:grid-cols-2">
             {attributesForCategory.map((attribute) => {

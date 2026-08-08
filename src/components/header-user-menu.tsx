@@ -27,7 +27,7 @@ export function HeaderUserMenu({ displayName }: { displayName: string }) {
         {displayName}
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+        <div className="absolute right-0 z-40 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
           <Link
             href="/dashboard/listings"
             className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"

@@ -3,21 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { HeaderUserMenu } from "./header-user-menu";
 import { CartIcon } from "./cart-icon";
+import { CategoryMegaMenu } from "./category-mega-menu";
 import type { Category } from "@/lib/supabase/types";
 
-const quickLinks = [
-  { label: "Vehicles", href: "/c/vehicles" },
-  { label: "Real Estate", href: "/c/real-estate" },
-  { label: "Electronics", href: "/c/electronics" },
-  { label: "Fashion", href: "/c/fashion" },
-  { label: "Jobs", href: "/c/jobs" },
-  { label: "Services", href: "/c/services" },
-  { label: "Free Stuff", href: "/c/free-stuff" },
-];
+const QUICK_LINK_SLUGS = ["vehicles", "real-estate", "electronics"];
 
 export async function SiteHeader() {
   let displayName: string | null = null;
-  let categories: Category[] = [];
+  let allCategories: Category[] = [];
 
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
@@ -29,11 +22,21 @@ export async function SiteHeader() {
         if (!user) return { data: null };
         return supabase.from("profiles").select("display_name").eq("id", user.id).single();
       })(),
-      supabase.from("categories").select("*").is("parent_id", null).order("name"),
+      supabase.from("categories").select("*").order("name"),
     ]);
 
     if (profileRow) displayName = profileRow.display_name;
-    categories = categoryRows ?? [];
+    allCategories = categoryRows ?? [];
+  }
+
+  const categories = allCategories.filter((c) => !c.parent_id);
+  const quickLinks = QUICK_LINK_SLUGS.map((slug) => categories.find((c) => c.slug === slug)).filter(
+    (c): c is Category => Boolean(c)
+  );
+  const childrenByParent: Record<string, Category[]> = {};
+  for (const category of allCategories) {
+    if (!category.parent_id) continue;
+    (childrenByParent[category.parent_id] ??= []).push(category);
   }
 
   return (
@@ -117,21 +120,11 @@ export async function SiteHeader() {
       </div>
 
       <div className="border-y border-slate-200 bg-white">
-        <nav className="no-scrollbar mx-auto flex max-w-7xl items-center gap-5 overflow-x-auto px-4 py-2 text-sm font-medium text-slate-600 sm:px-6 lg:px-8">
-          {quickLinks.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="shrink-0 whitespace-nowrap transition hover:text-orange-600"
-            >
-              {item.label}
-            </Link>
-          ))}
-          <span className="ml-auto hidden shrink-0 items-center gap-1 whitespace-nowrap text-orange-600 sm:inline-flex">
-            <SparkleIcon />
-            Free listings for individuals
-          </span>
-        </nav>
+        <CategoryMegaMenu
+          topLevelCategories={categories}
+          childrenByParent={childrenByParent}
+          quickLinks={quickLinks}
+        />
       </div>
     </header>
   );
@@ -168,14 +161,6 @@ function ChatIcon() {
         strokeWidth="1.8"
         strokeLinejoin="round"
       />
-    </svg>
-  );
-}
-
-function SparkleIcon() {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5" aria-hidden>
-      <path d="M10 2l1.8 5.2L17 9l-5.2 1.8L10 16l-1.8-5.2L3 9l5.2-1.8L10 2Z" />
     </svg>
   );
 }

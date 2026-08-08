@@ -1,20 +1,31 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
-import { getListings, getSubcategories } from "@/lib/queries/listings";
+import { getEffectiveCategoryAttributes, getListings, getSubcategories } from "@/lib/queries/listings";
 import { ListingCard } from "@/components/listing-card";
-import { ListingFilters } from "@/components/listing-filters";
+import { CategoryFilterSidebar } from "@/components/category-filter-sidebar";
 
 type SearchParams = {
   q?: string;
   subcategory?: string;
   district?: string;
   condition?: string;
+  sellerType?: string;
   minPrice?: string;
   maxPrice?: string;
   sort?: string;
+  [key: string]: string | undefined;
 };
+
+function extractAttributeFilters(sp: SearchParams): Record<string, string> {
+  const filters: Record<string, string> = {};
+  for (const [key, value] of Object.entries(sp)) {
+    if (key.startsWith("attr_") && value) {
+      filters[key.slice("attr_".length)] = value;
+    }
+  }
+  return filters;
+}
 
 export default async function CategoryPage({
   params,
@@ -43,16 +54,21 @@ export default async function CategoryPage({
 
   if (!category) notFound();
 
-  const subcategories = await getSubcategories(supabase, category.id);
+  const [subcategories, attributes] = await Promise.all([
+    getSubcategories(supabase, category.id),
+    getEffectiveCategoryAttributes(supabase, category.id),
+  ]);
 
   const listings = await getListings(supabase, {
     categorySlug: sp.subcategory || categorySlug,
     search: sp.q,
     district: sp.district,
     condition: sp.condition === "new" || sp.condition === "used" ? sp.condition : undefined,
+    sellerType: sp.sellerType === "individual" || sp.sellerType === "business" ? sp.sellerType : undefined,
     minPrice: sp.minPrice ? Number(sp.minPrice) : undefined,
     maxPrice: sp.maxPrice ? Number(sp.maxPrice) : undefined,
     sort: sp.sort === "price_asc" || sp.sort === "price_desc" ? sp.sort : "newest",
+    attributeFilters: extractAttributeFilters(sp),
   });
 
   return (
@@ -62,47 +78,28 @@ export default async function CategoryPage({
         {listings.length} active listing{listings.length === 1 ? "" : "s"}
       </p>
 
-      {subcategories.length > 0 && (
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Link
-            href={`/c/${categorySlug}`}
-            className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
-              !sp.subcategory
-                ? "border-orange-300 bg-orange-50 text-orange-600"
-                : "border-slate-200 text-slate-600 hover:border-orange-200 hover:text-orange-600"
-            }`}
-          >
-            All {category.name}
-          </Link>
-          {subcategories.map((subcategory) => (
-            <Link
-              key={subcategory.id}
-              href={`/c/${categorySlug}?subcategory=${subcategory.slug}`}
-              className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
-                sp.subcategory === subcategory.slug
-                  ? "border-orange-300 bg-orange-50 text-orange-600"
-                  : "border-slate-200 text-slate-600 hover:border-orange-200 hover:text-orange-600"
-              }`}
-            >
-              {subcategory.name}
-            </Link>
-          ))}
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
+        <CategoryFilterSidebar
+          formAction={`/c/${categorySlug}`}
+          defaultValues={sp}
+          categorySlug={categorySlug}
+          categoryName={category.name}
+          subcategories={subcategories}
+          attributes={attributes}
+        />
+
+        <div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+            {listings.map((listing) => (
+              <ListingCard key={listing.id} listing={listing} />
+            ))}
+          </div>
+
+          {listings.length === 0 && (
+            <div className="mt-16 text-center text-slate-500">No listings match your filters yet.</div>
+          )}
         </div>
-      )}
-
-      <div className="mt-6">
-        <ListingFilters formAction={`/c/${categorySlug}`} defaultValues={sp} />
       </div>
-
-      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {listings.map((listing) => (
-          <ListingCard key={listing.id} listing={listing} />
-        ))}
-      </div>
-
-      {listings.length === 0 && (
-        <div className="mt-16 text-center text-slate-500">No listings match your filters yet.</div>
-      )}
     </main>
   );
 }

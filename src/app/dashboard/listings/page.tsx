@@ -19,7 +19,7 @@ export default async function DashboardListingsPage() {
   const { data } = await supabase
     .from("listings")
     .select(
-      "*, listing_images(*), categories(id, name, slug), profiles(id, display_name, district, rating_avg, rating_count)"
+      "*, listing_images(*), categories(id, name, slug), profiles!listings_seller_id_fkey(id, display_name, district, rating_avg, rating_count)"
     )
     .eq("seller_id", user.id)
     .order("created_at", { ascending: false });

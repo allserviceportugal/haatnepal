@@ -5,7 +5,7 @@ const LISTING_SELECT = `
   *,
   listing_images(*),
   categories(id, name, slug, parent_id),
-  profiles(id, display_name, district, rating_avg, rating_count),
+  profiles!listings_seller_id_fkey(id, display_name, district, rating_avg, rating_count, account_type),
   listing_attribute_values(*, category_attributes(*)),
   listing_delivery_options(courier:delivery_couriers(*))
 `;
@@ -19,30 +19,37 @@ export type ListingFilters = {
   maxPrice?: number;
   sort?: "newest" | "price_asc" | "price_desc";
   sellerId?: string;
+  sellerType?: "individual" | "business";
   limit?: number;
+  /** attribute id -> selected value, ANDed together */
+  attributeFilters?: Record<string, string>;
 };
 
 async function resolveCategoryIds(supabase: SupabaseClient, slug: string): Promise<string[] | null> {
   const { data: category } = await supabase
     .from("categories")
-    .select("id, parent_id")
+    .select("id")
     .eq("slug", slug)
     .single();
 
   if (!category) return null;
 
-  // Top-level category: include the category itself plus all of its
-  // subcategories, so browsing "/c/vehicles" shows Cars, Motorcycles, etc.
-  if (!category.parent_id) {
-    const { data: children } = await supabase
-      .from("categories")
-      .select("id")
-      .eq("parent_id", category.id);
-    return [category.id, ...(children ?? []).map((c) => c.id)];
+  // Include the category itself plus all descendants at any depth, so
+  // browsing a top-level category ("/c/electronics"), a mid-tier group
+  // ("/c/phones-accessories"), or a leaf ("/c/smartphones") all resolve to
+  // the right set of listings regardless of where they sit in the tree.
+  const ids = [category.id];
+  let frontier = [category.id];
+
+  while (frontier.length > 0) {
+    const { data: children } = await supabase.from("categories").select("id").in("parent_id", frontier);
+    const childIds = (children ?? []).map((c) => c.id);
+    if (childIds.length === 0) break;
+    ids.push(...childIds);
+    frontier = childIds;
   }
 
-  // Subcategory: exact match only.
-  return [category.id];
+  return ids;
 }
 
 export async function getListings(
@@ -60,9 +67,47 @@ export async function getListings(
     query = query.in("category_id", categoryIds);
   }
 
+  if (filters.attributeFilters && Object.keys(filters.attributeFilters).length > 0) {
+    let matchingIds: Set<string> | undefined;
+
+    for (const [attributeId, value] of Object.entries(filters.attributeFilters)) {
+      const { data: rows } = await supabase
+        .from("listing_attribute_values")
+        .select("listing_id")
+        .eq("attribute_id", attributeId)
+        .eq("value", value);
+
+      const idsForThisFilter = new Set<string>((rows ?? []).map((row) => row.listing_id as string));
+
+      if (matchingIds === undefined) {
+        matchingIds = idsForThisFilter;
+      } else {
+        const intersected = new Set<string>();
+        for (const id of matchingIds) {
+          if (idsForThisFilter.has(id)) intersected.add(id);
+        }
+        matchingIds = intersected;
+      }
+    }
+
+    if (!matchingIds || matchingIds.size === 0) return [];
+    query = query.in("id", Array.from(matchingIds));
+  }
+
   if (filters.search) {
     const term = filters.search.replace(/[%,]/g, " ").trim();
     query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%`);
+  }
+
+  if (filters.sellerType) {
+    const { data: matchingSellers } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("account_type", filters.sellerType);
+
+    const sellerIds = (matchingSellers ?? []).map((row) => row.id as string);
+    if (sellerIds.length === 0) return [];
+    query = query.in("seller_id", sellerIds);
   }
 
   if (filters.district) {
@@ -134,4 +179,32 @@ export async function getCategoryAttributes(
     .eq("category_id", categoryId)
     .order("sort_order");
   return data ?? [];
+}
+
+async function getParentCategoryId(supabase: SupabaseClient, categoryId: string): Promise<string | null> {
+  const { data } = await supabase.from("categories").select("parent_id").eq("id", categoryId).single();
+  return data?.parent_id ?? null;
+}
+
+/**
+ * Walks the category tree upward from `categoryId` (self, then parent, then
+ * grandparent, ...) and returns the first non-empty set of category
+ * attributes found. Lets a specific leaf (e.g. "Desktop Computers") override
+ * its department's generic set, while leaves nobody has curated yet (e.g.
+ * "Cars") fall back to the nearest ancestor that has attributes defined.
+ */
+export async function getEffectiveCategoryAttributes(
+  supabase: SupabaseClient,
+  categoryId: string
+): Promise<CategoryAttribute[]> {
+  let currentId: string | null = categoryId;
+
+  while (currentId) {
+    const attributes = await getCategoryAttributes(supabase, currentId);
+    if (attributes.length > 0) return attributes;
+
+    currentId = await getParentCategoryId(supabase, currentId);
+  }
+
+  return [];
 }

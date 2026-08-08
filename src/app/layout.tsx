@@ -3,6 +3,7 @@ import "./globals.css";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { CartProvider } from "@/lib/cart/cart-context";
+import { AuthSessionSync } from "@/components/auth-session-sync";
 
 export const metadata: Metadata = {
   title: "Haat Nepal",
@@ -14,6 +15,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full bg-[#f1f2f4] text-slate-900">
         <CartProvider>
+          <AuthSessionSync />
           <SiteHeader />
           {children}
           <SiteFooter />
