@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Category } from "@/lib/supabase/types";
 
@@ -15,23 +15,24 @@ export function CategoryMegaMenu({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(topLevelCategories[0]?.id ?? null);
-  const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  function open() {
-    if (closeTimeout.current) clearTimeout(closeTimeout.current);
-    setIsOpen(true);
-  }
-
-  function scheduleClose() {
-    closeTimeout.current = setTimeout(() => setIsOpen(false), 150);
-  }
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const activeChildren = activeId ? (childrenByParent[activeId] ?? []) : [];
   const groups = activeChildren.filter((c) => (childrenByParent[c.id]?.length ?? 0) > 0);
   const flatItems = activeChildren.filter((c) => !(childrenByParent[c.id]?.length ?? 0));
 
   return (
-    <div className="relative" onMouseEnter={open} onMouseLeave={scheduleClose}>
+    <div className="relative" ref={containerRef}>
       <div className="no-scrollbar mx-auto flex max-w-7xl items-center gap-5 overflow-x-auto px-4 py-2 text-sm font-medium text-slate-600 sm:px-6 lg:px-8">
         <button
           type="button"

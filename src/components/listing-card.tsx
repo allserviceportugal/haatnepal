@@ -4,6 +4,7 @@ import type { ListingWithRelations } from "@/lib/supabase/types";
 
 export function ListingCard({ listing }: { listing: ListingWithRelations }) {
   const image = listing.listing_images[0]?.url;
+  const isFeatured = listing.featured_until !== null && new Date(listing.featured_until) > new Date();
 
   return (
     <Link
@@ -36,6 +37,11 @@ export function ListingCard({ listing }: { listing: ListingWithRelations }) {
         </span>
 
         <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
+          {isFeatured && (
+            <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950">
+              Featured
+            </span>
+          )}
           {listing.listing_type === "fixed_price" && (
             <span className="rounded bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
               Buy now

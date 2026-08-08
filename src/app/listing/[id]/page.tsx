@@ -5,6 +5,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { getListingById } from "@/lib/queries/listings";
 import { FavoriteButton } from "@/components/favorite-button";
 import { AddToCartButton } from "@/components/add-to-cart-button";
+import { FeatureListingButton } from "@/components/feature-listing-button";
 import { deleteListingAction, markListingSoldAction } from "@/lib/actions/listings";
 import { startConversationAction } from "@/lib/actions/conversations";
 import { formatPrice, timeAgo } from "@/lib/format";
@@ -32,6 +33,19 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     data: { user },
   } = await supabase.auth.getUser();
   const isOwner = user?.id === listing.seller_id;
+
+  let canFeature = false;
+  if (isOwner) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("subscription_plans(monthly_featured_quota)")
+      .eq("id", user.id)
+      .single();
+    const plan = (
+      profile as unknown as { subscription_plans: { monthly_featured_quota: number | null } | null } | null
+    )?.subscription_plans;
+    canFeature = !plan || plan.monthly_featured_quota !== 0;
+  }
 
   let isFavorited = false;
   if (user) {
@@ -163,6 +177,11 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                       Delete
                     </button>
                   </form>
+                  <FeatureListingButton
+                    listingId={listing.id}
+                    featuredUntil={listing.featured_until}
+                    canFeature={canFeature}
+                  />
                 </>
               ) : (
                 <FavoriteButton

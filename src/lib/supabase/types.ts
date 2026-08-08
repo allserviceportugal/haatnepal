@@ -2,7 +2,7 @@ export type ListingCondition = "new" | "used";
 export type ListingType = "classified" | "fixed_price";
 export type ListingStatus = "draft" | "active" | "sold" | "expired" | "removed";
 export type AccountType = "individual" | "business";
-export type SubscriptionTier = "normal" | "pro" | "business" | "custom";
+export type SubscriptionTier = "normal" | "business" | "plus" | "pro" | "custom";
 export type AttributeInputType = "text" | "number" | "select" | "boolean";
 
 export type Profile = {
@@ -25,6 +25,7 @@ export type SubscriptionPlan = {
   key: SubscriptionTier;
   name: string;
   monthly_listing_quota: number | null;
+  monthly_featured_quota: number | null;
   allows_promoted_listings: boolean;
   allows_storefront_branding: boolean;
   is_paid: boolean;
@@ -87,6 +88,8 @@ export type Listing = {
   district: string;
   city: string | null;
   pickup_available: boolean;
+  featured_at: string | null;
+  featured_until: string | null;
   created_at: string;
   updated_at: string;
   expires_at: string;

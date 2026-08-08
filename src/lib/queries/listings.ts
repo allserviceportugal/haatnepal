@@ -146,7 +146,20 @@ export async function getListings(
     return [];
   }
 
-  return (data ?? []) as unknown as ListingWithRelations[];
+  const listings = (data ?? []) as unknown as ListingWithRelations[];
+  const now = Date.now();
+  const isFeatured = (listing: ListingWithRelations) =>
+    listing.featured_until !== null && new Date(listing.featured_until).getTime() > now;
+
+  // Stable sort: featured listings (within this already-fetched page) float
+  // to the top, preserving relative order within each group.
+  return listings
+    .map((listing, index) => ({ listing, index }))
+    .sort((a, b) => {
+      const featuredDiff = Number(isFeatured(b.listing)) - Number(isFeatured(a.listing));
+      return featuredDiff !== 0 ? featuredDiff : a.index - b.index;
+    })
+    .map(({ listing }) => listing);
 }
 
 export async function getListingById(supabase: SupabaseClient, id: string) {

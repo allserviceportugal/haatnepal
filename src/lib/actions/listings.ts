@@ -237,3 +237,73 @@ export async function markListingSoldAction(listingId: string) {
   revalidatePath(`/listing/${listingId}`);
   revalidatePath("/dashboard/listings");
 }
+
+export type FeatureListingState = { error?: string };
+
+export async function featureListingAction(
+  listingId: string,
+  _prevState: FeatureListingState,
+  _formData: FormData
+): Promise<FeatureListingState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in." };
+  }
+
+  const { data: listing } = await supabase
+    .from("listings")
+    .select("id, seller_id")
+    .eq("id", listingId)
+    .eq("seller_id", user.id)
+    .single();
+
+  if (!listing) {
+    return { error: "Listing not found." };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("subscription_plans(name, monthly_featured_quota)")
+    .eq("id", user.id)
+    .single();
+
+  const plan = (
+    profile as unknown as { subscription_plans: { name: string; monthly_featured_quota: number | null } | null } | null
+  )?.subscription_plans;
+
+  if (!plan || plan.monthly_featured_quota === 0) {
+    return { error: "Your plan doesn't include featured listings. Upgrade to Plus or higher on the Plan page." };
+  }
+
+  if (plan.monthly_featured_quota !== null) {
+    const { count } = await supabase
+      .from("listings")
+      .select("id", { count: "exact", head: true })
+      .eq("seller_id", user.id)
+      .gte("featured_at", startOfCurrentMonthISO());
+
+    if ((count ?? 0) >= plan.monthly_featured_quota) {
+      return {
+        error: `You've used all ${plan.monthly_featured_quota} featured listings this month on the ${plan.name} plan. Upgrade for more.`,
+      };
+    }
+  }
+
+  const featuredAt = new Date();
+  const featuredUntil = new Date(featuredAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  await supabase
+    .from("listings")
+    .update({ featured_at: featuredAt.toISOString(), featured_until: featuredUntil.toISOString() })
+    .eq("id", listingId)
+    .eq("seller_id", user.id);
+
+  revalidatePath(`/listing/${listingId}`);
+  revalidatePath("/dashboard/listings");
+
+  return {};
+}

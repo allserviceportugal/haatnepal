@@ -38,6 +38,13 @@ export function PlanCard({
             ? "Unlimited listings"
             : `${plan.monthly_listing_quota} listings/month`}
         </li>
+        <li>
+          {plan.monthly_featured_quota === null
+            ? "Unlimited featured listings"
+            : plan.monthly_featured_quota === 0
+              ? "No featured listings"
+              : `${plan.monthly_featured_quota} featured listings/month`}
+        </li>
         <li>{plan.allows_promoted_listings ? "Promoted/boosted listings" : "Standard listing visibility"}</li>
         <li>{plan.allows_storefront_branding ? "Branded storefront page" : "Standard profile page"}</li>
       </ul>
