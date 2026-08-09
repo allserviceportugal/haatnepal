@@ -32,20 +32,58 @@ export function ListingForm({
 
   const topLevelCategories = useMemo(() => categories.filter((c) => !c.parent_id), [categories]);
 
-  const initialCategory = categories.find((c) => c.id === defaultValues?.category_id);
-  const [topLevelId, setTopLevelId] = useState(
-    initialCategory ? initialCategory.parent_id ?? initialCategory.id : ""
-  );
-  const [subcategoryId, setSubcategoryId] = useState(
-    initialCategory?.parent_id ? initialCategory.id : ""
-  );
+  // Build the initial category path (breadcrumb of IDs from root to leaf).
+  const buildCategoryPath = (leafId: string | null) => {
+    if (!leafId) return [];
+    const categoryMap = new Map(categories.map((c) => [c.id, c]));
+    const path: string[] = [];
+    let currentId: string | null = leafId;
+    while (currentId) {
+      path.unshift(currentId);
+      currentId = categoryMap.get(currentId)?.parent_id ?? null;
+    }
+    return path;
+  };
 
-  const subcategories = useMemo(
-    () => categories.filter((c) => c.parent_id === topLevelId),
-    [categories, topLevelId]
-  );
+  const initialCategoryPath = buildCategoryPath(defaultValues?.category_id ?? null);
 
-  const effectiveCategoryId = subcategories.length > 0 ? subcategoryId : topLevelId;
+  // Cascade state: array of selected category IDs at each level.
+  const [categoryPath, setCategoryPath] = useState<string[]>(initialCategoryPath);
+
+  // Build the cascading levels. For each level, if there are children for the current selection, render a new select.
+  const categoryLevels = useMemo(() => {
+    const levels: { id: string; options: typeof categories; selected: string }[] = [];
+    let currentParentId: string | null = null;
+
+    // Helper: get children of a given parent ID.
+    const getChildren = (parentId: string | null) =>
+      categories.filter((c) => c.parent_id === parentId);
+
+    // Level 0: top-level categories (no parent)
+    const topLevel = getChildren(null);
+    levels.push({
+      id: "level-0",
+      options: topLevel,
+      selected: categoryPath[0] ?? "",
+    });
+
+    // Level N: walk down the path, adding a level for each selection that has children.
+    for (let i = 0; i < categoryPath.length; i++) {
+      currentParentId = categoryPath[i];
+      const children = getChildren(currentParentId);
+      if (children.length === 0) break; // leaf node, no more levels
+      levels.push({
+        id: `level-${i + 1}`,
+        options: children,
+        selected: categoryPath[i + 1] ?? "",
+      });
+    }
+
+    return levels;
+  }, [categoryPath, categories]);
+
+  // The effective category is the last selected one in the path.
+  const effectiveCategoryId = categoryPath[categoryPath.length - 1] ?? "";
 
   const categoriesById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
@@ -121,44 +159,33 @@ export function ListingForm({
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-slate-700">Category</label>
-          <select
-            value={topLevelId}
-            onChange={(e) => {
-              setTopLevelId(e.target.value);
-              setSubcategoryId("");
-            }}
-            required
-            className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
-          >
-            <option value="">Select a category</option>
-            {topLevelCategories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {subcategories.length > 0 && (
-          <div>
-            <label className="block text-sm font-semibold text-slate-700">Subcategory</label>
+        {categoryLevels.map((level, levelIndex) => (
+          <div key={level.id}>
+            <label className="block text-sm font-semibold text-slate-700">
+              {levelIndex === 0 ? "Category" : `${levelIndex === 1 ? "Group" : "Subcategory"}`}
+            </label>
             <select
-              value={subcategoryId}
-              onChange={(e) => setSubcategoryId(e.target.value)}
-              required
+              value={level.selected}
+              onChange={(e) => {
+                // Update the path: keep everything up to this level, replace at this level.
+                const newPath = categoryPath.slice(0, levelIndex);
+                if (e.target.value) {
+                  newPath.push(e.target.value);
+                }
+                setCategoryPath(newPath);
+              }}
+              required={levelIndex === 0}
               className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
             >
-              <option value="">Select a subcategory</option>
-              {subcategories.map((subcategory) => (
-                <option key={subcategory.id} value={subcategory.id}>
-                  {subcategory.name}
+              <option value="">Select {levelIndex === 0 ? "a category" : "a subcategory"}</option>
+              {level.options.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
                 </option>
               ))}
             </select>
           </div>
-        )}
+        ))}
 
         <div>
           <label className="block text-sm font-semibold text-slate-700">Condition</label>
@@ -215,7 +242,7 @@ export function ListingForm({
       {attributesForCategory.length > 0 && (
         <div>
           <label className="block text-sm font-semibold text-slate-700">
-            {sourceCategoryName ?? topLevelCategories.find((c) => c.id === topLevelId)?.name} details
+            {sourceCategoryName} details
           </label>
           <div className="mt-2 grid gap-4 sm:grid-cols-2">
             {attributesForCategory.map((attribute) => {
