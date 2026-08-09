@@ -102,6 +102,17 @@ export function ListingForm({
     return false;
   }, [effectiveCategoryId, categories]);
 
+  // Helper: check if a category (or its ancestors) is in the fashion tree
+  const isFashionListing = useMemo(() => {
+    const categoryMap = new Map(categories.map((c) => [c.id, c]));
+    let current = effectiveCategoryId ? categoryMap.get(effectiveCategoryId) : null;
+    while (current) {
+      if (current.slug === "fashion") return true;
+      current = current.parent_id ? categoryMap.get(current.parent_id) : null;
+    }
+    return false;
+  }, [effectiveCategoryId, categories]);
+
   // Build the cascading levels. For each level, if there are children for the current selection, render a new select.
   const categoryLevels = useMemo(() => {
     const levels: { id: string; options: typeof categories; selected: string }[] = [];
