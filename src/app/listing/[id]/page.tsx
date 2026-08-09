@@ -218,7 +218,14 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                 {listing.categories.name}
               </Link>
             )}
-            <h1 className="mt-2 text-2xl font-black text-slate-900">{listing.title}</h1>
+            <div className="mt-2 flex items-start gap-2">
+              <h1 className="flex-1 text-2xl font-black text-slate-900">{listing.title}</h1>
+              {listing.featured_until !== null && new Date(listing.featured_until) > new Date() && (
+                <span className="rounded bg-amber-400 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-950">
+                  Featured
+                </span>
+              )}
+            </div>
             <p className="mt-2 text-3xl font-black text-orange-600">
               {formatPrice(listing.price, listing.currency)}
             </p>
@@ -226,6 +233,14 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               <span>{listing.city ? `${listing.city}, ${listing.district}` : listing.district}</span>
               <span>{timeAgo(listing.created_at)}</span>
             </div>
+            {(listing.favorite_count ?? 0) > 0 && (
+              <div className="mt-2 flex items-center gap-1 text-xs text-slate-600">
+                <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5 text-red-500" aria-hidden>
+                  <path d="M12 20s-7.5-4.6-9.9-9.1C.6 7.5 2 4 5.6 4c2 0 3.5 1.1 4.4 2.5C10.9 5.1 12.4 4 14.4 4 18 4 19.4 7.5 17.9 10.9 15.5 15.4 12 20 12 20Z" />
+                </svg>
+                {listing.favorite_count} {listing.favorite_count === 1 ? "person saved" : "people saved"} this
+              </div>
+            )}
 
             <div className="mt-6 flex flex-wrap gap-3">
               {isOwner ? (

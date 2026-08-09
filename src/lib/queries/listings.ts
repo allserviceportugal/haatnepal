@@ -186,6 +186,15 @@ export async function getListings(
   const isFeatured = (listing: ListingWithRelations) =>
     listing.featured_until !== null && new Date(listing.featured_until).getTime() > now;
 
+  // Fetch favorite counts for all listings
+  const listingIds = listings.map((l) => l.id);
+  const favoriteCounts = await getFavoriteCounts(supabase, listingIds);
+
+  // Attach favorite counts to listings
+  listings.forEach((listing) => {
+    (listing as any).favorite_count = favoriteCounts[listing.id] ?? 0;
+  });
+
   // Stable sort: featured listings (within this already-fetched page) float
   // to the top, preserving relative order within each group.
   return listings
@@ -200,7 +209,12 @@ export async function getListings(
 export async function getListingById(supabase: SupabaseClient, id: string) {
   const { data, error } = await supabase.from("listings").select(LISTING_SELECT).eq("id", id).single();
   if (error) return null;
-  return data as unknown as ListingWithRelations;
+
+  const listing = data as unknown as ListingWithRelations;
+  const counts = await getFavoriteCounts(supabase, [id]);
+  (listing as any).favorite_count = counts[id] ?? 0;
+
+  return listing;
 }
 
 export async function getFavoriteListingIds(supabase: SupabaseClient, userId: string) {
@@ -255,4 +269,23 @@ export async function getEffectiveCategoryAttributes(
   }
 
   return [];
+}
+
+export async function getFavoriteCounts(
+  supabase: SupabaseClient,
+  listingIds: string[]
+): Promise<Record<string, number>> {
+  if (listingIds.length === 0) return {};
+
+  const { data } = await supabase
+    .from("listing_favorite_counts")
+    .select("listing_id, favorite_count")
+    .in("listing_id", listingIds);
+
+  const counts: Record<string, number> = {};
+  (data ?? []).forEach((row) => {
+    counts[row.listing_id] = row.favorite_count;
+  });
+
+  return counts;
 }

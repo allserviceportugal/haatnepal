@@ -32,6 +32,7 @@ export function CategoryFilterSidebar({
   isJobsCategory?: boolean;
 }) {
   const selectAttributes = (attributes ?? []).filter((a) => a.input_type === "select");
+  const booleanAttributes = (attributes ?? []).filter((a) => a.input_type === "boolean");
   const employmentTypeAttr = selectAttributes.find((a) => a.key === "employment_type");
 
   return (
@@ -248,6 +249,49 @@ export function CategoryFilterSidebar({
                     {option}
                   </label>
                 ))}
+              </div>
+            </div>
+          );
+        })}
+
+        {booleanAttributes.map((attribute) => {
+          const fieldName = `attr_${attribute.id}`;
+          const currentValue = defaultValues[fieldName] ?? "";
+
+          return (
+            <div key={attribute.id} className="border-t border-slate-100 pt-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{attribute.label}</p>
+              <div className="mt-2 space-y-1.5">
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="radio"
+                    name={fieldName}
+                    value=""
+                    defaultChecked={!currentValue}
+                    className="h-3.5 w-3.5"
+                  />
+                  Any
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="radio"
+                    name={fieldName}
+                    value="true"
+                    defaultChecked={currentValue === "true"}
+                    className="h-3.5 w-3.5"
+                  />
+                  Yes
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="radio"
+                    name={fieldName}
+                    value="false"
+                    defaultChecked={currentValue === "false"}
+                    className="h-3.5 w-3.5"
+                  />
+                  No
+                </label>
               </div>
             </div>
           );

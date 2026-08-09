@@ -237,4 +237,5 @@ export type ListingWithRelations = Listing & {
   > | null;
   listing_attribute_values: (ListingAttributeValue & { category_attributes: CategoryAttribute | null })[];
   listing_delivery_options: { courier: DeliveryCourier }[];
+  favorite_count?: number;
 };
