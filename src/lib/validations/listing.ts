@@ -4,6 +4,8 @@ export const listingConditions = ["new", "used"] as const;
 export const listingTypes = ["classified", "fixed_price"] as const;
 export const landUnitSystems = ["ropani_system", "bigha_system", "sqft", "sqm"] as const;
 export const salaryPeriods = ["monthly", "yearly", "hourly", "daily"] as const;
+export const bluebookStatuses = ["clear", "mortgage", "registered-insurance-claim", "customs-hold", "unknown"] as const;
+export const importStatuses = ["local", "imported-used", "imported-new", "reconditioned"] as const;
 
 export const listingSchema = z.object({
   title: z.string().trim().min(5, "Title must be at least 5 characters").max(120),
@@ -34,6 +36,14 @@ export const listingSchema = z.object({
   vacancies_count: z.coerce.number().int().min(1).optional().or(z.literal("")),
   application_deadline: z.string().date().optional().or(z.literal("")),
   external_apply_url: z.string().url().optional().or(z.literal("")),
+  registrationYear: z.coerce.number().int().min(1950).max(new Date().getFullYear()).optional().or(z.literal("")),
+  manufacturingYear: z.coerce.number().int().min(1950).max(new Date().getFullYear()).optional().or(z.literal("")),
+  bluebookStatus: z.enum(bluebookStatuses).optional().or(z.literal("")),
+  importStatus: z.enum(importStatuses).optional().or(z.literal("")),
+  ownerCount: z.coerce.number().int().min(0).max(10).optional().or(z.literal("")),
+  isModified: z.boolean().optional().default(false),
+  accidentHistory: z.boolean().optional().default(false),
+  serviceHistory: z.string().trim().max(500).optional().or(z.literal("")),
 });
 
 export type ListingInput = z.infer<typeof listingSchema>;

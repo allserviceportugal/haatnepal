@@ -4,6 +4,8 @@ export type ListingStatus = "draft" | "active" | "sold" | "expired" | "removed";
 export type AccountType = "individual" | "business";
 export type SubscriptionTier = "normal" | "business" | "plus" | "pro" | "custom";
 export type AttributeInputType = "text" | "number" | "select" | "boolean";
+export type DraftStatus = "auto-saved" | "user-saved" | "being-created";
+export type VehicleBrandLevel = "brand" | "model" | "generation" | "variant";
 
 export type Profile = {
   id: string;
@@ -117,8 +119,59 @@ export type Listing = {
   vacancies_count: number | null;
   application_deadline: string | null;
   external_apply_url: string | null;
+  bluebook_status: string | null;
+  registration_year: number | null;
+  manufacturing_year: number | null;
+  import_status: string | null;
+  owner_count: number | null;
+  is_modified: boolean;
+  accident_history: boolean;
+  service_history: string | null;
   listing_number: number;
   view_count: number;
+  created_at: string;
+  updated_at: string;
+  expires_at: string;
+};
+
+export type VehicleBrand = {
+  id: string;
+  category_id: string;
+  parent_id: string | null;
+  name: string;
+  slug: string;
+  level: VehicleBrandLevel;
+  is_active: boolean;
+  sort_order: number;
+};
+
+export type DraftListing = {
+  id: string;
+  seller_id: string;
+  title: string | null;
+  description: string | null;
+  price: number | null;
+  category_id: string | null;
+  condition: string | null;
+  listing_type: string | null;
+  district: string | null;
+  city: string | null;
+  municipality: string | null;
+  ward_number: number | null;
+  tole: string | null;
+  bluebook_status: string | null;
+  registration_year: number | null;
+  manufacturing_year: number | null;
+  import_status: string | null;
+  owner_count: number | null;
+  is_modified: boolean;
+  accident_history: boolean;
+  service_history: string | null;
+  category_path: Record<string, string> | null;
+  attribute_values: Record<string, string>;
+  courier_ids: string[] | null;
+  image_urls: string[] | null;
+  status: DraftStatus;
   created_at: string;
   updated_at: string;
   expires_at: string;

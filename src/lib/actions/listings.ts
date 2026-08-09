@@ -38,6 +38,14 @@ function parseListingForm(formData: FormData) {
     vacancies_count: formData.get("vacancies_count"),
     application_deadline: formData.get("application_deadline"),
     external_apply_url: formData.get("external_apply_url"),
+    registrationYear: formData.get("registrationYear"),
+    manufacturingYear: formData.get("manufacturingYear"),
+    bluebookStatus: formData.get("bluebookStatus"),
+    importStatus: formData.get("importStatus"),
+    ownerCount: formData.get("ownerCount"),
+    isModified: formData.get("isModified") === "on",
+    accidentHistory: formData.get("accidentHistory") === "on",
+    serviceHistory: formData.get("serviceHistory"),
   });
 }
 
@@ -133,7 +141,7 @@ export async function createListingAction(
     return { error: quotaCheckResult.error };
   }
 
-  const { title, description, price, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url } =
+  const { title, description, price, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, registrationYear, manufacturingYear, bluebookStatus, importStatus, ownerCount, isModified, accidentHistory, serviceHistory } =
     parsed.data;
   const pickupAvailable = formData.get("pickupAvailable") === "on";
 
@@ -175,6 +183,14 @@ export async function createListingAction(
       vacancies_count: vacancies_count ? parseInt(String(vacancies_count), 10) : null,
       application_deadline: application_deadline || null,
       external_apply_url: external_apply_url || null,
+      registration_year: registrationYear ? parseInt(String(registrationYear), 10) : null,
+      manufacturing_year: manufacturingYear ? parseInt(String(manufacturingYear), 10) : null,
+      bluebook_status: bluebookStatus || null,
+      import_status: importStatus || null,
+      owner_count: ownerCount ? parseInt(String(ownerCount), 10) : null,
+      is_modified: isModified,
+      accident_history: accidentHistory,
+      service_history: serviceHistory || null,
       expires_at: expiresAt,
     })
     .select("id")

@@ -29,8 +29,14 @@ export function ListingForm({
   submitLabel,
 }: Props) {
   const [state, formAction, isPending] = useActionState(action, {});
-
-  const topLevelCategories = useMemo(() => categories.filter((c) => !c.parent_id), [categories]);
+  const [registrationYear, setRegistrationYear] = useState<string>((defaultValues?.registration_year as any) ?? "");
+  const [manufacturingYear, setManufacturingYear] = useState<string>((defaultValues?.manufacturing_year as any) ?? "");
+  const [bluebookStatus, setBluebookStatus] = useState<string>((defaultValues?.bluebook_status as any) ?? "");
+  const [importStatus, setImportStatus] = useState<string>((defaultValues?.import_status as any) ?? "");
+  const [ownerCount, setOwnerCount] = useState<string>((defaultValues?.owner_count as any) ?? "");
+  const [isModified, setIsModified] = useState<boolean>(defaultValues?.is_modified ?? false);
+  const [accidentHistory, setAccidentHistory] = useState<boolean>(defaultValues?.accident_history ?? false);
+  const [serviceHistory, setServiceHistory] = useState<string>((defaultValues?.service_history as any) ?? "");
 
   // Build the initial category path (breadcrumb of IDs from root to leaf).
   const buildCategoryPath = (leafId: string | null) => {
@@ -80,6 +86,17 @@ export function ListingForm({
     let current = effectiveCategoryId ? categoryMap.get(effectiveCategoryId) : null;
     while (current) {
       if (current.slug === "jobs") return true;
+      current = current.parent_id ? categoryMap.get(current.parent_id) : null;
+    }
+    return false;
+  }, [effectiveCategoryId, categories]);
+
+  // Helper: check if a category (or its ancestors) is in the vehicles tree
+  const isVehiclesListing = useMemo(() => {
+    const categoryMap = new Map(categories.map((c) => [c.id, c]));
+    let current = effectiveCategoryId ? categoryMap.get(effectiveCategoryId) : null;
+    while (current) {
+      if (current.slug === "vehicles") return true;
       current = current.parent_id ? categoryMap.get(current.parent_id) : null;
     }
     return false;
@@ -270,6 +287,120 @@ export function ListingForm({
             ))}
           </select>
         </div>
+
+        {isVehiclesListing && (
+          <>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Registration Year (optional)</label>
+              <input
+                type="number"
+                min={1950}
+                max={new Date().getFullYear()}
+                value={registrationYear}
+                onChange={(e) => setRegistrationYear(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                placeholder="e.g. 2019"
+              />
+              <input type="hidden" name="registrationYear" value={registrationYear} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Manufacturing Year (optional)</label>
+              <input
+                type="number"
+                min={1950}
+                max={new Date().getFullYear()}
+                value={manufacturingYear}
+                onChange={(e) => setManufacturingYear(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                placeholder="e.g. 2019"
+              />
+              <input type="hidden" name="manufacturingYear" value={manufacturingYear} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Bluebook Status (optional)</label>
+              <select
+                value={bluebookStatus}
+                onChange={(e) => setBluebookStatus(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+              >
+                <option value="">Select status...</option>
+                <option value="clear">Clear</option>
+                <option value="mortgage">Mortgage</option>
+                <option value="registered-insurance-claim">Registered Insurance Claim</option>
+                <option value="customs-hold">Customs Hold</option>
+                <option value="unknown">Unknown</option>
+              </select>
+              <input type="hidden" name="bluebookStatus" value={bluebookStatus} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Import Status (optional)</label>
+              <select
+                value={importStatus}
+                onChange={(e) => setImportStatus(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+              >
+                <option value="">Select status...</option>
+                <option value="local">Local (Not Imported)</option>
+                <option value="imported-used">Imported Used</option>
+                <option value="imported-new">Imported New (Unopened)</option>
+                <option value="reconditioned">Reconditioned</option>
+              </select>
+              <input type="hidden" name="importStatus" value={importStatus} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Number of Previous Owners (optional)</label>
+              <input
+                type="number"
+                min={0}
+                max={10}
+                value={ownerCount}
+                onChange={(e) => setOwnerCount(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                placeholder="e.g. 1"
+              />
+              <input type="hidden" name="ownerCount" value={ownerCount} />
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={isModified}
+                onChange={(e) => setIsModified(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Vehicle has been modified
+              <input type="hidden" name="isModified" value={isModified ? "on" : ""} />
+            </label>
+
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={accidentHistory}
+                onChange={(e) => setAccidentHistory(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Has accident history
+              <input type="hidden" name="accidentHistory" value={accidentHistory ? "on" : ""} />
+            </label>
+
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-semibold text-slate-700">Service History (optional)</label>
+              <textarea
+                value={serviceHistory}
+                onChange={(e) => setServiceHistory(e.target.value)}
+                maxLength={500}
+                rows={3}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                placeholder="e.g. Regular service, new tires, engine overhaul..."
+              />
+              <input type="hidden" name="serviceHistory" value={serviceHistory} />
+            </div>
+          </>
+        )}
 
         {isRealEstateListing && (
           <>
