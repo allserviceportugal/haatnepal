@@ -2,143 +2,7 @@
 -- extensive attributes for each vehicle type, draft persistence system
 
 -- ---------------------------------------------------------------------------
--- Enhanced Vehicles category hierarchy
--- ---------------------------------------------------------------------------
-
--- Get the existing Vehicles root category ID for reference
--- and create missing vehicle subcategories
-
-insert into public.categories (parent_id, name, slug)
-select (select id from public.categories where slug = 'vehicles'), name, slug
-from (values
-  ('SUVs & Jeeps', 'suvs-jeeps'),
-  ('Electric Vehicles', 'electric-vehicles'),
-  ('Three Wheelers', 'three-wheelers'),
-  ('Tractors & Agricultural', 'tractors-agricultural'),
-  ('Car Spare Parts', 'car-spare-parts'),
-  ('Motorcycle Spare Parts', 'motorcycle-spare-parts'),
-  ('Commercial Vehicle Parts', 'commercial-vehicle-parts'),
-  ('Vehicle Rental Services', 'vehicle-rental-services'),
-  ('Vehicle Repair & Services', 'vehicle-repair-services')
-) as t(name, slug)
-on conflict(slug) do nothing;
-
--- Create sub-leaves for more specific categorization
-insert into public.categories (parent_id, name, slug)
-select (select id from public.categories where slug = 'cars'), name, slug
-from (values
-  ('Sedans', 'sedans'),
-  ('Hatchbacks', 'hatchbacks'),
-  ('MPVs & 7-Seaters', 'mpvs-7-seaters'),
-  ('Coupes & Convertibles', 'coupes-convertibles'),
-  ('Station Wagons', 'station-wagons')
-) as t(name, slug)
-on conflict(slug) do nothing;
-
-insert into public.categories (parent_id, name, slug)
-select (select id from public.categories where slug = 'suvs-jeeps'), name, slug
-from (values
-  ('Compact SUVs', 'compact-suvs'),
-  ('Mid-size SUVs', 'mid-size-suvs'),
-  ('Full-size SUVs', 'full-size-suvs'),
-  ('Jeeps', 'jeeps')
-) as t(name, slug)
-on conflict(slug) do nothing;
-
-insert into public.categories (parent_id, name, slug)
-select (select id from public.categories where slug = 'motorcycles-scooters'), name, slug
-from (values
-  ('Street Bikes', 'street-bikes'),
-  ('Cruisers', 'cruisers'),
-  ('Touring Bikes', 'touring-bikes'),
-  ('Sports Bikes', 'sports-bikes'),
-  ('Dirt Bikes & Off-road', 'dirt-bikes-off-road'),
-  ('Scooters', 'scooters-category'),
-  ('Mopeds', 'mopeds')
-) as t(name, slug)
-on conflict(slug) do nothing;
-
-insert into public.categories (parent_id, name, slug)
-select (select id from public.categories where slug = 'electric-vehicles'), name, slug
-from (values
-  ('Electric Cars', 'electric-cars'),
-  ('Electric Scooters', 'electric-scooters'),
-  ('Electric Motorcycles', 'electric-motorcycles'),
-  ('Electric Bikes', 'electric-bikes')
-) as t(name, slug)
-on conflict(slug) do nothing;
-
-insert into public.categories (parent_id, name, slug)
-select (select id from public.categories where slug = 'commercial-trucks'), name, slug
-from (values
-  ('Vans', 'vans'),
-  ('Light Commercial Vehicles', 'light-commercial-vehicles'),
-  ('Medium & Heavy Trucks', 'medium-heavy-trucks'),
-  ('Buses & Coaches', 'buses-coaches'),
-  ('Pickup Trucks', 'pickup-trucks')
-) as t(name, slug)
-on conflict(slug) do nothing;
-
-insert into public.categories (parent_id, name, slug)
-select (select id from public.categories where slug = 'three-wheelers'), name, slug
-from (values
-  ('Auto Rickshaws', 'auto-rickshaws'),
-  ('Three Wheel Motorcycles', 'three-wheel-motorcycles'),
-  ('Electric Auto Rickshaws', 'electric-auto-rickshaws')
-) as t(name, slug)
-on conflict(slug) do nothing;
-
-insert into public.categories (parent_id, name, slug)
-select (select id from public.categories where slug = 'tractors-agricultural'), name, slug
-from (values
-  ('Farm Tractors', 'farm-tractors'),
-  ('Agricultural Machinery', 'agricultural-machinery'),
-  ('Harvesters & Threshers', 'harvesters-threshers')
-) as t(name, slug)
-on conflict(slug) do nothing;
-
-insert into public.categories (parent_id, name, slug)
-select (select id from public.categories where slug = 'construction-equipment'), name, slug
-from (values
-  ('Excavators & Loaders', 'excavators-loaders'),
-  ('Bulldozers & Graders', 'bulldozers-graders'),
-  ('Cranes & Lifts', 'cranes-lifts'),
-  ('Compressors & Generators', 'compressors-generators')
-) as t(name, slug)
-on conflict(slug) do nothing;
-
--- ---------------------------------------------------------------------------
--- Vehicle condition type enum
--- ---------------------------------------------------------------------------
--- Already exists as listing_condition (new/used), but will extend attributes
--- to include condition-specific fields like registration_year, import_status, etc.
-
--- ---------------------------------------------------------------------------
--- vehicle_brands table: hierarchical Brand → Model → Generation → Variant
--- ---------------------------------------------------------------------------
-create table public.vehicle_brands (
-  id uuid primary key default gen_random_uuid(),
-  category_id uuid not null references public.categories (id) on delete cascade,
-  parent_id uuid references public.vehicle_brands (id) on delete cascade,
-  name text not null,
-  slug text not null,
-  level text not null check (level in ('brand', 'model', 'generation', 'variant')),
-  is_active boolean not null default true,
-  sort_order integer not null default 0,
-  unique (slug, category_id)
-);
-
-create index vehicle_brands_category_id_idx on public.vehicle_brands (category_id);
-create index vehicle_brands_parent_id_idx on public.vehicle_brands (parent_id);
-
-alter table public.vehicle_brands enable row level security;
-
-create policy "Vehicle brands are publicly readable"
-  on public.vehicle_brands for select
-  using (true);
-
--- ---------------------------------------------------------------------------
--- listings: add vehicle-specific fields
+-- Add vehicle-specific fields to listings table
 -- ---------------------------------------------------------------------------
 alter table public.listings
   add column if not exists bluebook_status text,
@@ -151,11 +15,35 @@ alter table public.listings
   add column if not exists service_history text;
 
 -- ---------------------------------------------------------------------------
--- draft_listings table: persistent draft support
+-- Create vehicle_brands table: hierarchical Brand → Model → Generation → Variant
 -- ---------------------------------------------------------------------------
-create type public.draft_status as enum ('auto-saved', 'user-saved', 'being-created');
+create table if not exists public.vehicle_brands (
+  id uuid primary key default gen_random_uuid(),
+  category_id uuid not null references public.categories (id) on delete cascade,
+  parent_id uuid references public.vehicle_brands (id) on delete cascade,
+  name text not null,
+  slug text not null,
+  level text not null check (level in ('brand', 'model', 'generation', 'variant')),
+  is_active boolean not null default true,
+  sort_order integer not null default 0,
+  unique (slug, category_id)
+);
 
-create table public.draft_listings (
+create index if not exists vehicle_brands_category_id_idx on public.vehicle_brands (category_id);
+create index if not exists vehicle_brands_parent_id_idx on public.vehicle_brands (parent_id);
+
+alter table public.vehicle_brands enable row level security;
+
+create policy if not exists "Vehicle brands are publicly readable"
+  on public.vehicle_brands for select
+  using (true);
+
+-- ---------------------------------------------------------------------------
+-- Create draft_listings table for persistent draft support
+-- ---------------------------------------------------------------------------
+create type if not exists public.draft_status as enum ('auto-saved', 'user-saved', 'being-created');
+
+create table if not exists public.draft_listings (
   id uuid primary key default gen_random_uuid(),
   seller_id uuid not null references public.profiles (id) on delete cascade,
   title text,
@@ -169,8 +57,6 @@ create table public.draft_listings (
   municipality text,
   ward_number integer,
   tole text,
-
-  -- Vehicle-specific fields
   bluebook_status text,
   registration_year integer,
   manufacturing_year integer,
@@ -179,188 +65,326 @@ create table public.draft_listings (
   is_modified boolean default false,
   accident_history boolean default false,
   service_history text,
-
-  -- Store category path (parent chain) as JSON
   category_path jsonb,
-
-  -- Store all attribute values as JSON (key -> value)
   attribute_values jsonb default '{}',
-
-  -- Delivery courier selections
   courier_ids text[],
-
-  -- Image URLs (stored temporarily)
   image_urls text[],
-
-  -- Track draft status and auto-save
   status public.draft_status not null default 'auto-saved',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   expires_at timestamptz not null default (now() + interval '30 days')
 );
 
-create index draft_listings_seller_id_idx on public.draft_listings (seller_id);
-create index draft_listings_category_id_idx on public.draft_listings (category_id);
-create index draft_listings_updated_at_idx on public.draft_listings (updated_at desc);
+create index if not exists draft_listings_seller_id_idx on public.draft_listings (seller_id);
+create index if not exists draft_listings_category_id_idx on public.draft_listings (category_id);
+create index if not exists draft_listings_updated_at_idx on public.draft_listings (updated_at desc);
 
 alter table public.draft_listings enable row level security;
 
-create policy "Users can view their own drafts"
+create policy if not exists "Users can view their own drafts"
   on public.draft_listings for select
   using (seller_id = auth.uid());
 
-create policy "Users can create their own drafts"
+create policy if not exists "Users can create their own drafts"
   on public.draft_listings for insert
   with check (seller_id = auth.uid());
 
-create policy "Users can update their own drafts"
+create policy if not exists "Users can update their own drafts"
   on public.draft_listings for update
   using (seller_id = auth.uid())
   with check (seller_id = auth.uid());
 
-create policy "Users can delete their own drafts"
+create policy if not exists "Users can delete their own drafts"
   on public.draft_listings for delete
   using (seller_id = auth.uid());
 
-create trigger set_draft_listings_updated_at
+create trigger if not exists set_draft_listings_updated_at
   before update on public.draft_listings
   for each row
   execute function public.set_updated_at();
 
 -- ---------------------------------------------------------------------------
--- Comprehensive attributes for all vehicle types
+-- Add vehicle subcategories to existing Vehicles category
 -- ---------------------------------------------------------------------------
 
--- CARS (generic, inherited by all car types)
-insert into public.category_attributes (category_id, key, label, input_type, options, is_required, sort_order)
-select (select id from public.categories where slug = 'cars'), key, label, input_type::public.attribute_input_type, options::jsonb, is_required, sort_order
-from (values
-  ('brand', 'Brand', 'text', null, true, 1),
-  ('model', 'Model', 'text', null, true, 2),
-  ('model_year', 'Model Year', 'number', null, false, 3),
-  ('registration_year', 'Registration Year', 'number', null, false, 4),
-  ('mileage_km', 'Mileage (km)', 'number', null, false, 5),
-  ('condition_specific', 'Condition', 'select', '["New", "Used", "Reconditioned", "Imported Used", "Demo/Test"]', false, 6),
-  ('fuel_type', 'Fuel Type', 'select', '["Petrol", "Diesel", "Hybrid", "CNG"]', false, 7),
-  ('transmission', 'Transmission', 'select', '["Manual", "Automatic", "CVT"]', false, 8),
-  ('body_type', 'Body Type', 'select', '["Sedan", "SUV", "Hatchback", "MPV", "Wagon", "Coupe"]', false, 9),
-  ('engine_capacity_cc', 'Engine Capacity (cc)', 'number', null, false, 10),
-  ('power_bhp', 'Power (bhp)', 'number', null, false, 11),
-  ('torque_nm', 'Torque (Nm)', 'number', null, false, 12),
-  ('seats', 'Seats', 'select', '["2", "4", "5", "7", "8+"]', false, 13),
-  ('doors', 'Doors', 'select', '["2", "3", "4", "5"]', false, 14),
-  ('fuel_tank_capacity', 'Fuel Tank Capacity (L)', 'number', null, false, 15),
-  ('emission_standard', 'Emission Standard', 'select', '["Euro 0", "Euro 1", "Euro 2", "Euro 3", "Euro 4", "Euro 5", "Euro 6"]', false, 16),
-  ('drive_type', 'Drive Type', 'select', '["Front-wheel", "Rear-wheel", "All-wheel"]', false, 17),
-  ('color', 'Color', 'select', '["White", "Black", "Silver", "Gray", "Red", "Blue", "Brown", "Orange", "Green", "Other"]', false, 18),
-  ('ownership', 'Ownership', 'select', '["1st Owner", "2nd Owner", "3rd Owner", "4+ Owners"]', false, 19)
-) as t(key, label, input_type, options, is_required, sort_order);
+do $$
+declare
+  vehicles_id uuid;
+begin
+  -- Get the Vehicles category ID
+  select id into vehicles_id from public.categories where slug = 'vehicles' limit 1;
 
--- MOTORCYCLES (generic, inherited by specific types)
-insert into public.category_attributes (category_id, key, label, input_type, options, is_required, sort_order)
-select (select id from public.categories where slug = 'motorcycles-scooters'), key, label, input_type::public.attribute_input_type, options::jsonb, is_required, sort_order
-from (values
-  ('brand', 'Brand', 'text', null, true, 1),
-  ('model', 'Model', 'text', null, true, 2),
-  ('model_year', 'Model Year', 'number', null, false, 3),
-  ('registration_year', 'Registration Year', 'number', null, false, 4),
-  ('engine_cc', 'Engine CC', 'number', null, false, 5),
-  ('mileage_km', 'Mileage (km)', 'number', null, false, 6),
-  ('fuel_type', 'Fuel Type', 'select', '["Petrol", "Diesel", "CNG"]', false, 7),
-  ('transmission', 'Transmission', 'select', '["Manual", "Automatic"]', false, 8),
-  ('gear_count', 'Gear Count', 'number', null, false, 9),
-  ('power_bhp', 'Power (bhp)', 'number', null, false, 10),
-  ('torque_nm', 'Torque (Nm)', 'number', null, false, 11),
-  ('kerb_weight_kg', 'Kerb Weight (kg)', 'number', null, false, 12),
-  ('fuel_tank_capacity', 'Fuel Tank Capacity (L)', 'number', null, false, 13),
-  ('seat_height_mm', 'Seat Height (mm)', 'number', null, false, 14),
-  ('abs_available', 'ABS Available', 'boolean', null, false, 15),
-  ('brake_type', 'Brake Type', 'select', '["Drum", "Disc", "Disc+Disc"]', false, 16),
-  ('color', 'Color', 'select', '["Red", "Black", "Blue", "White", "Silver", "Yellow", "Orange", "Green", "Other"]', false, 17),
-  ('ownership', 'Ownership', 'select', '["1st Owner", "2nd Owner", "3rd+ Owners"]', false, 18),
-  ('condition', 'Condition', 'select', '["New", "Like New", "Excellent", "Good", "Fair", "Poor"]', false, 19)
-) as t(key, label, input_type, options, is_required, sort_order);
+  if vehicles_id is not null then
+    -- Add main vehicle subcategories if they don't exist
+    insert into public.categories (parent_id, name, slug)
+    values
+      (vehicles_id, 'SUVs & Jeeps', 'suvs-jeeps'),
+      (vehicles_id, 'Electric Vehicles', 'electric-vehicles'),
+      (vehicles_id, 'Three Wheelers', 'three-wheelers'),
+      (vehicles_id, 'Tractors & Agricultural', 'tractors-agricultural'),
+      (vehicles_id, 'Car Spare Parts', 'car-spare-parts'),
+      (vehicles_id, 'Motorcycle Spare Parts', 'motorcycle-spare-parts'),
+      (vehicles_id, 'Commercial Vehicle Parts', 'commercial-vehicle-parts'),
+      (vehicles_id, 'Vehicle Rental Services', 'vehicle-rental-services'),
+      (vehicles_id, 'Vehicle Repair & Services', 'vehicle-repair-services')
+    on conflict(slug) do nothing;
+  end if;
+end $$;
 
--- ELECTRIC VEHICLES
-insert into public.category_attributes (category_id, key, label, input_type, options, is_required, sort_order)
-select (select id from public.categories where slug = 'electric-vehicles'), key, label, input_type::public.attribute_input_type, options::jsonb, is_required, sort_order
-from (values
-  ('brand', 'Brand', 'text', null, true, 1),
-  ('model', 'Model', 'text', null, true, 2),
-  ('model_year', 'Model Year', 'number', null, false, 3),
-  ('registration_year', 'Registration Year', 'number', null, false, 4),
-  ('mileage_km', 'Mileage (km)', 'number', null, false, 5),
-  ('battery_capacity_kwh', 'Battery Capacity (kWh)', 'number', null, false, 6),
-  ('battery_type', 'Battery Type', 'select', '["Lithium Ion (Li-ion)", "Lithium Polymer (LiPo)", "Other"]', false, 7),
-  ('claimed_range_km', 'Claimed Range (km)', 'number', null, false, 8),
-  ('real_world_range_km', 'Real-world Range (km)', 'number', null, false, 9),
-  ('motor_power_kw', 'Motor Power (kW)', 'number', null, false, 10),
-  ('motor_power_bhp', 'Motor Power (bhp)', 'number', null, false, 11),
-  ('motor_torque_nm', 'Motor Torque (Nm)', 'number', null, false, 12),
-  ('ac_charging_time_hours', 'AC Charging Time (hours)', 'number', null, false, 13),
-  ('dc_fast_charging_time_minutes', 'DC Fast Charging Time (minutes)', 'number', null, false, 14),
-  ('charging_type_supported', 'Charging Type Supported', 'select', '["AC Only", "DC Fast Charge", "Both AC & DC"]', false, 15),
-  ('battery_warranty_years', 'Battery Warranty (years)', 'number', null, false, 16),
-  ('body_type', 'Body Type', 'select', '["Sedan", "SUV", "Hatchback", "Bike", "Scooter"]', false, 17),
-  ('seats', 'Seats', 'select', '["2", "4", "5", "7", "8+"]', false, 18),
-  ('color', 'Color', 'select', '["White", "Black", "Silver", "Gray", "Blue", "Red", "Other"]', false, 19),
-  ('regenerative_braking', 'Regenerative Braking', 'boolean', null, false, 20)
-) as t(key, label, input_type, options, is_required, sort_order);
+-- ---------------------------------------------------------------------------
+-- Add specific car subtypes
+-- ---------------------------------------------------------------------------
 
--- COMMERCIAL VEHICLES / TRUCKS
-insert into public.category_attributes (category_id, key, label, input_type, options, is_required, sort_order)
-select (select id from public.categories where slug = 'commercial-trucks'), key, label, input_type::public.attribute_input_type, options::jsonb, is_required, sort_order
-from (values
-  ('brand', 'Brand', 'text', null, true, 1),
-  ('model', 'Model', 'text', null, true, 2),
-  ('model_year', 'Model Year', 'number', null, false, 3),
-  ('vehicle_type', 'Vehicle Type', 'select', '["Van", "Light Commercial", "Medium Truck", "Heavy Truck", "Bus", "Pickup"]', false, 4),
-  ('payload_capacity_kg', 'Payload Capacity (kg)', 'number', null, false, 5),
-  ('gross_vehicle_weight_rating_kg', 'GVWR (kg)', 'number', null, false, 6),
-  ('body_type', 'Body Type', 'select', '["Open", "Closed", "Refrigerated", "Flatbed", "Tanker", "Tipper", "Box"]', false, 7),
-  ('cab_type', 'Cab Type', 'select', '["Single", "Extended", "Double"]', false, 8),
-  ('axles', 'Axles', 'select', '["2", "3", "4", "5+"]', false, 9),
-  ('engine_cc', 'Engine CC', 'number', null, false, 10),
-  ('fuel_type', 'Fuel Type', 'select', '["Petrol", "Diesel", "CNG", "Electric"]', false, 11),
-  ('transmission', 'Transmission', 'select', '["Manual", "Automatic"]', false, 12),
-  ('wheelbase_mm', 'Wheelbase (mm)', 'number', null, false, 13),
-  ('cargo_length_mm', 'Cargo Length (mm)', 'number', null, false, 14),
-  ('cargo_width_mm', 'Cargo Width (mm)', 'number', null, false, 15),
-  ('cargo_height_mm', 'Cargo Height (mm)', 'number', null, false, 16),
-  ('mileage_km', 'Mileage (km)', 'number', null, false, 17),
-  ('color', 'Color', 'select', '["White", "Yellow", "Blue", "Red", "Black", "Other"]', false, 18)
-) as t(key, label, input_type, options, is_required, sort_order);
+do $$
+declare
+  cars_id uuid;
+begin
+  select id into cars_id from public.categories where slug = 'cars' limit 1;
 
--- TRACTORS & AGRICULTURAL MACHINERY
-insert into public.category_attributes (category_id, key, label, input_type, options, is_required, sort_order)
-select (select id from public.categories where slug = 'tractors-agricultural'), key, label, input_type::public.attribute_input_type, options::jsonb, is_required, sort_order
-from (values
-  ('brand', 'Brand', 'text', null, true, 1),
-  ('model', 'Model', 'text', null, true, 2),
-  ('model_year', 'Model Year', 'number', null, false, 3),
-  ('horsepower', 'Horsepower', 'number', null, false, 4),
-  ('pto_horsepower', 'PTO Horsepower', 'number', null, false, 5),
-  ('drive_type', 'Drive Type', 'select', '["2WD", "4WD/AWD"]', false, 6),
-  ('hydraulic_capacity_cc', 'Hydraulic Capacity (cc)', 'number', null, false, 7),
-  ('lifting_capacity_kg', 'Lifting Capacity (kg)', 'number', null, false, 8),
-  ('engine_type', 'Engine Type', 'select', '["Petrol", "Diesel", "Natural Gas"]', false, 9),
-  ('transmission', 'Transmission', 'select', '["Manual", "Power Shuttle", "Hydrostatic"]', false, 10),
-  ('hours_used', 'Hours Used (engine hours)', 'number', null, false, 11),
-  ('attachment_compatibility', 'Attachment Compatibility', 'text', null, false, 12)
-) as t(key, label, input_type, options, is_required, sort_order);
+  if cars_id is not null then
+    insert into public.categories (parent_id, name, slug)
+    values
+      (cars_id, 'Sedans', 'sedans'),
+      (cars_id, 'Hatchbacks', 'hatchbacks'),
+      (cars_id, 'MPVs & 7-Seaters', 'mpvs-7-seaters'),
+      (cars_id, 'Coupes & Convertibles', 'coupes-convertibles'),
+      (cars_id, 'Station Wagons', 'station-wagons')
+    on conflict(slug) do nothing;
+  end if;
+end $$;
 
--- THREE WHEELERS
-insert into public.category_attributes (category_id, key, label, input_type, options, is_required, sort_order)
-select (select id from public.categories where slug = 'three-wheelers'), key, label, input_type::public.attribute_input_type, options::jsonb, is_required, sort_order
-from (values
-  ('brand', 'Brand', 'text', null, true, 1),
-  ('model', 'Model', 'text', null, true, 2),
-  ('model_year', 'Model Year', 'number', null, false, 3),
-  ('three_wheeler_type', 'Type', 'select', '["Auto Rickshaw", "Three Wheel Motorcycle", "Electric Auto"]', false, 4),
-  ('engine_cc', 'Engine CC', 'number', null, false, 5),
-  ('mileage_km', 'Mileage (km)', 'number', null, false, 6),
-  ('fuel_type', 'Fuel Type', 'select', '["Petrol", "Diesel", "CNG", "Electric", "LPG"]', false, 7),
-  ('seating_capacity', 'Seating Capacity', 'number', null, false, 8),
-  ('registration_year', 'Registration Year', 'number', null, false, 9),
-  ('color', 'Color', 'select', '["Yellow", "Black", "Blue", "Red", "White", "Other"]', false, 10)
-) as t(key, label, input_type, options, is_required, sort_order);
+-- ---------------------------------------------------------------------------
+-- Add SUV subtypes
+-- ---------------------------------------------------------------------------
+
+do $$
+declare
+  suvs_id uuid;
+begin
+  select id into suvs_id from public.categories where slug = 'suvs-jeeps' limit 1;
+
+  if suvs_id is not null then
+    insert into public.categories (parent_id, name, slug)
+    values
+      (suvs_id, 'Compact SUVs', 'compact-suvs'),
+      (suvs_id, 'Mid-size SUVs', 'mid-size-suvs'),
+      (suvs_id, 'Full-size SUVs', 'full-size-suvs'),
+      (suvs_id, 'Jeeps', 'jeeps')
+    on conflict(slug) do nothing;
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Add motorcycle subtypes
+-- ---------------------------------------------------------------------------
+
+do $$
+declare
+  motos_id uuid;
+begin
+  select id into motos_id from public.categories where slug = 'motorcycles-scooters' limit 1;
+
+  if motos_id is not null then
+    insert into public.categories (parent_id, name, slug)
+    values
+      (motos_id, 'Street Bikes', 'street-bikes'),
+      (motos_id, 'Cruisers', 'cruisers'),
+      (motos_id, 'Touring Bikes', 'touring-bikes'),
+      (motos_id, 'Sports Bikes', 'sports-bikes'),
+      (motos_id, 'Dirt Bikes & Off-road', 'dirt-bikes-off-road'),
+      (motos_id, 'Scooters', 'scooters-category'),
+      (motos_id, 'Mopeds', 'mopeds')
+    on conflict(slug) do nothing;
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Add EV subtypes
+-- ---------------------------------------------------------------------------
+
+do $$
+declare
+  ev_id uuid;
+begin
+  select id into ev_id from public.categories where slug = 'electric-vehicles' limit 1;
+
+  if ev_id is not null then
+    insert into public.categories (parent_id, name, slug)
+    values
+      (ev_id, 'Electric Cars', 'electric-cars'),
+      (ev_id, 'Electric Scooters', 'electric-scooters'),
+      (ev_id, 'Electric Motorcycles', 'electric-motorcycles'),
+      (ev_id, 'Electric Bikes', 'electric-bikes')
+    on conflict(slug) do nothing;
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Add commercial vehicle subtypes
+-- ---------------------------------------------------------------------------
+
+do $$
+declare
+  comm_id uuid;
+begin
+  select id into comm_id from public.categories where slug = 'commercial-trucks' limit 1;
+
+  if comm_id is not null then
+    insert into public.categories (parent_id, name, slug)
+    values
+      (comm_id, 'Vans', 'vans'),
+      (comm_id, 'Light Commercial Vehicles', 'light-commercial-vehicles'),
+      (comm_id, 'Medium & Heavy Trucks', 'medium-heavy-trucks'),
+      (comm_id, 'Buses & Coaches', 'buses-coaches'),
+      (comm_id, 'Pickup Trucks', 'pickup-trucks')
+    on conflict(slug) do nothing;
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Add three wheeler subtypes
+-- ---------------------------------------------------------------------------
+
+do $$
+declare
+  three_w_id uuid;
+begin
+  select id into three_w_id from public.categories where slug = 'three-wheelers' limit 1;
+
+  if three_w_id is not null then
+    insert into public.categories (parent_id, name, slug)
+    values
+      (three_w_id, 'Auto Rickshaws', 'auto-rickshaws'),
+      (three_w_id, 'Three Wheel Motorcycles', 'three-wheel-motorcycles'),
+      (three_w_id, 'Electric Auto Rickshaws', 'electric-auto-rickshaws')
+    on conflict(slug) do nothing;
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Add tractor subtypes
+-- ---------------------------------------------------------------------------
+
+do $$
+declare
+  tractor_id uuid;
+begin
+  select id into tractor_id from public.categories where slug = 'tractors-agricultural' limit 1;
+
+  if tractor_id is not null then
+    insert into public.categories (parent_id, name, slug)
+    values
+      (tractor_id, 'Farm Tractors', 'farm-tractors'),
+      (tractor_id, 'Agricultural Machinery', 'agricultural-machinery'),
+      (tractor_id, 'Harvesters & Threshers', 'harvesters-threshers')
+    on conflict(slug) do nothing;
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Add construction equipment subtypes
+-- ---------------------------------------------------------------------------
+
+do $$
+declare
+  constr_id uuid;
+begin
+  select id into constr_id from public.categories where slug = 'construction-equipment' limit 1;
+
+  if constr_id is not null then
+    insert into public.categories (parent_id, name, slug)
+    values
+      (constr_id, 'Excavators & Loaders', 'excavators-loaders'),
+      (constr_id, 'Bulldozers & Graders', 'bulldozers-graders'),
+      (constr_id, 'Cranes & Lifts', 'cranes-lifts'),
+      (constr_id, 'Compressors & Generators', 'compressors-generators')
+    on conflict(slug) do nothing;
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Add vehicle attributes for Cars
+-- ---------------------------------------------------------------------------
+
+do $$
+declare
+  cars_id uuid;
+begin
+  select id into cars_id from public.categories where slug = 'cars' limit 1;
+
+  if cars_id is not null then
+    delete from public.category_attributes where category_id = cars_id;
+
+    insert into public.category_attributes (category_id, key, label, input_type, options, is_required, sort_order)
+    values
+      (cars_id, 'brand', 'Brand', 'text'::public.attribute_input_type, null, true, 1),
+      (cars_id, 'model', 'Model', 'text'::public.attribute_input_type, null, true, 2),
+      (cars_id, 'model_year', 'Model Year', 'number'::public.attribute_input_type, null, false, 3),
+      (cars_id, 'registration_year', 'Registration Year', 'number'::public.attribute_input_type, null, false, 4),
+      (cars_id, 'mileage_km', 'Mileage (km)', 'number'::public.attribute_input_type, null, false, 5),
+      (cars_id, 'fuel_type', 'Fuel Type', 'select'::public.attribute_input_type, '["Petrol", "Diesel", "Hybrid", "CNG"]'::jsonb, false, 6),
+      (cars_id, 'transmission', 'Transmission', 'select'::public.attribute_input_type, '["Manual", "Automatic", "CVT"]'::jsonb, false, 7),
+      (cars_id, 'body_type', 'Body Type', 'select'::public.attribute_input_type, '["Sedan", "SUV", "Hatchback", "MPV", "Wagon", "Coupe"]'::jsonb, false, 8),
+      (cars_id, 'engine_capacity_cc', 'Engine Capacity (cc)', 'number'::public.attribute_input_type, null, false, 9),
+      (cars_id, 'power_bhp', 'Power (bhp)', 'number'::public.attribute_input_type, null, false, 10),
+      (cars_id, 'torque_nm', 'Torque (Nm)', 'number'::public.attribute_input_type, null, false, 11),
+      (cars_id, 'seats', 'Seats', 'select'::public.attribute_input_type, '["2", "4", "5", "7", "8+"]'::jsonb, false, 12),
+      (cars_id, 'doors', 'Doors', 'select'::public.attribute_input_type, '["2", "3", "4", "5"]'::jsonb, false, 13),
+      (cars_id, 'color', 'Color', 'select'::public.attribute_input_type, '["White", "Black", "Silver", "Gray", "Red", "Blue", "Brown", "Orange", "Green", "Other"]'::jsonb, false, 14);
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Add vehicle attributes for Motorcycles
+-- ---------------------------------------------------------------------------
+
+do $$
+declare
+  motos_id uuid;
+begin
+  select id into motos_id from public.categories where slug = 'motorcycles-scooters' limit 1;
+
+  if motos_id is not null then
+    delete from public.category_attributes where category_id = motos_id;
+
+    insert into public.category_attributes (category_id, key, label, input_type, options, is_required, sort_order)
+    values
+      (motos_id, 'brand', 'Brand', 'text'::public.attribute_input_type, null, true, 1),
+      (motos_id, 'model', 'Model', 'text'::public.attribute_input_type, null, true, 2),
+      (motos_id, 'model_year', 'Model Year', 'number'::public.attribute_input_type, null, false, 3),
+      (motos_id, 'engine_cc', 'Engine CC', 'number'::public.attribute_input_type, null, false, 4),
+      (motos_id, 'mileage_km', 'Mileage (km)', 'number'::public.attribute_input_type, null, false, 5),
+      (motos_id, 'fuel_type', 'Fuel Type', 'select'::public.attribute_input_type, '["Petrol", "Diesel", "CNG"]'::jsonb, false, 6),
+      (motos_id, 'transmission', 'Transmission', 'select'::public.attribute_input_type, '["Manual", "Automatic"]'::jsonb, false, 7),
+      (motos_id, 'power_bhp', 'Power (bhp)', 'number'::public.attribute_input_type, null, false, 8),
+      (motos_id, 'abs_available', 'ABS Available', 'boolean'::public.attribute_input_type, null, false, 9),
+      (motos_id, 'color', 'Color', 'select'::public.attribute_input_type, '["Red", "Black", "Blue", "White", "Silver", "Yellow", "Orange", "Green", "Other"]'::jsonb, false, 10);
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Add vehicle attributes for Electric Vehicles
+-- ---------------------------------------------------------------------------
+
+do $$
+declare
+  ev_id uuid;
+begin
+  select id into ev_id from public.categories where slug = 'electric-vehicles' limit 1;
+
+  if ev_id is not null then
+    delete from public.category_attributes where category_id = ev_id;
+
+    insert into public.category_attributes (category_id, key, label, input_type, options, is_required, sort_order)
+    values
+      (ev_id, 'brand', 'Brand', 'text'::public.attribute_input_type, null, true, 1),
+      (ev_id, 'model', 'Model', 'text'::public.attribute_input_type, null, true, 2),
+      (ev_id, 'model_year', 'Model Year', 'number'::public.attribute_input_type, null, false, 3),
+      (ev_id, 'battery_capacity_kwh', 'Battery Capacity (kWh)', 'number'::public.attribute_input_type, null, false, 4),
+      (ev_id, 'claimed_range_km', 'Claimed Range (km)', 'number'::public.attribute_input_type, null, false, 5),
+      (ev_id, 'motor_power_kw', 'Motor Power (kW)', 'number'::public.attribute_input_type, null, false, 6),
+      (ev_id, 'charging_type', 'Charging Type', 'select'::public.attribute_input_type, '["AC Only", "DC Fast Charge", "Both AC & DC"]'::jsonb, false, 7),
+      (ev_id, 'battery_warranty_years', 'Battery Warranty (years)', 'number'::public.attribute_input_type, null, false, 8),
+      (ev_id, 'color', 'Color', 'select'::public.attribute_input_type, '["White", "Black", "Silver", "Gray", "Blue", "Red", "Other"]'::jsonb, false, 9);
+  end if;
+end $$;
