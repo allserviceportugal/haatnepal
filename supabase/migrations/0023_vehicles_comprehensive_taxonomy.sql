@@ -34,7 +34,8 @@ create index if not exists vehicle_brands_parent_id_idx on public.vehicle_brands
 
 alter table public.vehicle_brands enable row level security;
 
-create policy if not exists "Vehicle brands are publicly readable"
+drop policy if exists "Vehicle brands are publicly readable" on public.vehicle_brands;
+create policy "Vehicle brands are publicly readable"
   on public.vehicle_brands for select
   using (true);
 
@@ -81,24 +82,29 @@ create index if not exists draft_listings_updated_at_idx on public.draft_listing
 
 alter table public.draft_listings enable row level security;
 
-create policy if not exists "Users can view their own drafts"
+drop policy if exists "Users can view their own drafts" on public.draft_listings;
+create policy "Users can view their own drafts"
   on public.draft_listings for select
   using (seller_id = auth.uid());
 
-create policy if not exists "Users can create their own drafts"
+drop policy if exists "Users can create their own drafts" on public.draft_listings;
+create policy "Users can create their own drafts"
   on public.draft_listings for insert
   with check (seller_id = auth.uid());
 
-create policy if not exists "Users can update their own drafts"
+drop policy if exists "Users can update their own drafts" on public.draft_listings;
+create policy "Users can update their own drafts"
   on public.draft_listings for update
   using (seller_id = auth.uid())
   with check (seller_id = auth.uid());
 
-create policy if not exists "Users can delete their own drafts"
+drop policy if exists "Users can delete their own drafts" on public.draft_listings;
+create policy "Users can delete their own drafts"
   on public.draft_listings for delete
   using (seller_id = auth.uid());
 
-create trigger if not exists set_draft_listings_updated_at
+drop trigger if exists set_draft_listings_updated_at on public.draft_listings;
+create trigger set_draft_listings_updated_at
   before update on public.draft_listings
   for each row
   execute function public.set_updated_at();
