@@ -2,13 +2,20 @@ import Link from "next/link";
 import { formatPrice, timeAgo } from "@/lib/format";
 import type { ListingWithRelations } from "@/lib/supabase/types";
 
-export function ListingCard({ listing }: { listing: ListingWithRelations }) {
+export function ListingCard({
+  listing,
+  applicantCount,
+}: {
+  listing: ListingWithRelations;
+  applicantCount?: number;
+}) {
   const image = listing.listing_images[0]?.url;
   const isFeatured = listing.featured_until !== null && new Date(listing.featured_until) > new Date();
+  const href = applicantCount !== undefined ? `/dashboard/listings/${listing.id}/applicants` : `/listing/${listing.id}`;
 
   return (
     <Link
-      href={`/listing/${listing.id}`}
+      href={href}
       className="group block overflow-hidden rounded-md border border-slate-200 bg-white transition hover:shadow-md hover:shadow-slate-200"
     >
       <div className="relative h-36 w-full overflow-hidden bg-slate-100 sm:h-40">
@@ -40,6 +47,11 @@ export function ListingCard({ listing }: { listing: ListingWithRelations }) {
           {isFeatured && (
             <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950">
               Featured
+            </span>
+          )}
+          {applicantCount !== undefined && (
+            <span className="rounded bg-blue-500 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+              {applicantCount} {applicantCount === 1 ? "applicant" : "applicants"}
             </span>
           )}
           {listing.listing_type === "fixed_price" && (

@@ -109,6 +109,14 @@ export type Listing = {
   land_kattha: number | null;
   land_dhur: number | null;
   land_area_sqft: number | null;
+  company_name: string | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_period: "monthly" | "yearly" | "hourly" | "daily" | null;
+  salary_negotiable: boolean;
+  vacancies_count: number | null;
+  application_deadline: string | null;
+  external_apply_url: string | null;
   listing_number: number;
   view_count: number;
   created_at: string;
@@ -205,6 +213,19 @@ export type Review = {
   body: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type JobApplication = {
+  id: string;
+  listing_id: string;
+  applicant_id: string;
+  cover_note: string | null;
+  resume_path: string | null;
+  created_at: string;
+};
+
+export type JobApplicationWithApplicant = JobApplication & {
+  applicant: Pick<Profile, "id" | "display_name" | "avatar_url"> | null;
 };
 
 export type ListingWithRelations = Listing & {

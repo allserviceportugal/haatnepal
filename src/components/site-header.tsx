@@ -100,14 +100,16 @@ export async function SiteHeader() {
             <ChatIcon />
           </Link>
           <CartIcon />
-          <Link
-            href="/listing/new"
-            className="rounded-md bg-orange-500 px-3 py-2 text-sm font-bold text-white transition hover:bg-orange-600 sm:px-4"
-          >
-            Sell
-          </Link>
           {displayName ? (
-            <HeaderUserMenu displayName={displayName} />
+            <>
+              <Link
+                href="/listing/new"
+                className="rounded-md bg-orange-500 px-3 py-2 text-sm font-bold text-white transition hover:bg-orange-600 sm:px-4"
+              >
+                Sell
+              </Link>
+              <HeaderUserMenu displayName={displayName} />
+            </>
           ) : (
             <Link
               href="/login"

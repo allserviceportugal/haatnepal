@@ -17,6 +17,8 @@ export type ListingFilters = {
   condition?: "new" | "used";
   minPrice?: number;
   maxPrice?: number;
+  minSalary?: number;
+  maxSalary?: number;
   sort?: "newest" | "price_asc" | "price_desc";
   sellerId?: string;
   sellerType?: "individual" | "business";
@@ -50,6 +52,31 @@ async function resolveCategoryIds(supabase: SupabaseClient, slug: string): Promi
   }
 
   return ids;
+}
+
+export async function isDescendantOfSlug(
+  supabase: SupabaseClient,
+  categoryId: string,
+  ancestorSlug: string
+): Promise<boolean> {
+  const categoryMap = new Map<string, { id: string; slug: string; parent_id: string | null }>();
+  const { data: allCategories } = await supabase.from("categories").select("id, slug, parent_id");
+
+  if (allCategories) {
+    allCategories.forEach(
+      (c: { id: string; slug: string; parent_id: string | null }) =>
+        categoryMap.set(c.id, c)
+    );
+  }
+
+  let current = categoryMap.get(categoryId);
+  while (current) {
+    if (current.slug === ancestorSlug) return true;
+    if (!current.parent_id) break;
+    current = categoryMap.get(current.parent_id) || undefined;
+  }
+
+  return false;
 }
 
 export async function getListings(
@@ -124,6 +151,14 @@ export async function getListings(
 
   if (filters.maxPrice !== undefined) {
     query = query.lte("price", filters.maxPrice);
+  }
+
+  if (filters.minSalary !== undefined) {
+    query = query.or(`salary_max.gte.${filters.minSalary},salary_min.gte.${filters.minSalary}`);
+  }
+
+  if (filters.maxSalary !== undefined) {
+    query = query.or(`salary_min.lte.${filters.maxSalary},salary_max.lte.${filters.maxSalary}`);
   }
 
   if (filters.sellerId) {

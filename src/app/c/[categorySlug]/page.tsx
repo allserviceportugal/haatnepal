@@ -13,6 +13,8 @@ type SearchParams = {
   sellerType?: string;
   minPrice?: string;
   maxPrice?: string;
+  minSalary?: string;
+  maxSalary?: string;
   sort?: string;
   [key: string]: string | undefined;
 };
@@ -59,14 +61,18 @@ export default async function CategoryPage({
     getEffectiveCategoryAttributes(supabase, category.id),
   ]);
 
+  const isJobsCategory = category.slug === "jobs";
+
   const listings = await getListings(supabase, {
     categorySlug: sp.subcategory || categorySlug,
     search: sp.q,
     district: sp.district,
     condition: sp.condition === "new" || sp.condition === "used" ? sp.condition : undefined,
     sellerType: sp.sellerType === "individual" || sp.sellerType === "business" ? sp.sellerType : undefined,
-    minPrice: sp.minPrice ? Number(sp.minPrice) : undefined,
-    maxPrice: sp.maxPrice ? Number(sp.maxPrice) : undefined,
+    minPrice: isJobsCategory ? undefined : (sp.minPrice ? Number(sp.minPrice) : undefined),
+    maxPrice: isJobsCategory ? undefined : (sp.maxPrice ? Number(sp.maxPrice) : undefined),
+    minSalary: isJobsCategory ? (sp.minSalary ? Number(sp.minSalary) : undefined) : undefined,
+    maxSalary: isJobsCategory ? (sp.maxSalary ? Number(sp.maxSalary) : undefined) : undefined,
     sort: sp.sort === "price_asc" || sp.sort === "price_desc" ? sp.sort : "newest",
     attributeFilters: extractAttributeFilters(sp),
   });
@@ -81,11 +87,17 @@ export default async function CategoryPage({
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
         <CategoryFilterSidebar
           formAction={`/c/${categorySlug}`}
-          defaultValues={sp}
+          defaultValues={{
+            ...sp,
+            // Map salary params to price for sidebar UI
+            minPrice: isJobsCategory ? sp.minSalary : sp.minPrice,
+            maxPrice: isJobsCategory ? sp.maxSalary : sp.maxPrice,
+          }}
           categorySlug={categorySlug}
           categoryName={category.name}
           subcategories={subcategories}
           attributes={attributes}
+          isJobsCategory={isJobsCategory}
         />
 
         <div>

@@ -1,14 +1,16 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
-import { getListingById } from "@/lib/queries/listings";
+import { getListingById, isDescendantOfSlug } from "@/lib/queries/listings";
 import { FavoriteButton } from "@/components/favorite-button";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { FeatureListingButton } from "@/components/feature-listing-button";
 import { deleteListingAction, markListingSoldAction } from "@/lib/actions/listings";
 import { startConversationAction } from "@/lib/actions/conversations";
-import { formatPrice, timeAgo } from "@/lib/format";
+import { withdrawJobApplicationAction } from "@/lib/actions/job-applications";
+import { JobApplicationForm } from "@/components/job-application-form";
+import { formatPrice, formatSalary, timeAgo } from "@/lib/format";
 
 export default async function ListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -56,6 +58,23 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
       .eq("listing_id", id)
       .maybeSingle();
     isFavorited = Boolean(data);
+  }
+
+  // Check if this is a jobs listing
+  const isJobsListing = listing.categories?.parent_id
+    ? await isDescendantOfSlug(supabase, listing.category_id, "jobs")
+    : listing.categories?.slug === "jobs";
+
+  // Fetch existing job application if user is signed in and this is a jobs listing
+  let userJobApplication = null;
+  if (isJobsListing && user && !isOwner) {
+    const { data } = await supabase
+      .from("job_applications")
+      .select("id, created_at")
+      .eq("listing_id", id)
+      .eq("applicant_id", user.id)
+      .maybeSingle();
+    userJobApplication = data;
   }
 
   const images = [...listing.listing_images].sort((a, b) => a.sort_order - b.sort_order);
@@ -115,20 +134,78 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             </div>
           )}
 
-          <div className="mt-8 rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">Delivery</h2>
-            <ul className="mt-3 space-y-2 text-sm text-slate-700">
-              {listing.pickup_available && <li>Buyer pickup available</li>}
-              {listing.listing_delivery_options.map(({ courier }) => (
-                <li key={courier.id}>
-                  {courier.name} — NPR {courier.base_cost_npr}
-                </li>
-              ))}
-              {!listing.pickup_available && listing.listing_delivery_options.length === 0 && (
-                <li className="text-slate-500">Contact the seller to arrange delivery.</li>
-              )}
-            </ul>
-          </div>
+          {isJobsListing && (
+            <div className="mt-8 rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900">Job Details</h2>
+              <dl className="mt-4 space-y-3">
+                {listing.company_name && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-sm font-semibold text-slate-600">Company</dt>
+                    <dd className="text-sm font-semibold text-slate-900">{listing.company_name}</dd>
+                  </div>
+                )}
+
+                {formatSalary(
+                  listing.salary_min,
+                  listing.salary_max,
+                  listing.salary_period,
+                  listing.salary_negotiable
+                ) && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-sm font-semibold text-slate-600">Salary</dt>
+                    <dd className="text-sm font-semibold text-slate-900">
+                      {formatSalary(
+                        listing.salary_min,
+                        listing.salary_max,
+                        listing.salary_period,
+                        listing.salary_negotiable
+                      )}
+                    </dd>
+                  </div>
+                )}
+
+                {listing.vacancies_count && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-sm font-semibold text-slate-600">Vacancies</dt>
+                    <dd className="text-sm font-semibold text-slate-900">{listing.vacancies_count}</dd>
+                  </div>
+                )}
+
+                {listing.application_deadline && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-sm font-semibold text-slate-600">Application Deadline</dt>
+                    <dd className="text-sm font-semibold text-slate-900">
+                      {new Date(listing.application_deadline).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                      {new Date(listing.application_deadline) < new Date() && (
+                        <span className="ml-2 text-xs font-bold text-red-600">(Closed)</span>
+                      )}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+
+          {!isJobsListing && (
+            <div className="mt-8 rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900">Delivery</h2>
+              <ul className="mt-3 space-y-2 text-sm text-slate-700">
+                {listing.pickup_available && <li>Buyer pickup available</li>}
+                {listing.listing_delivery_options.map(({ courier }) => (
+                  <li key={courier.id}>
+                    {courier.name} — NPR {courier.base_cost_npr}
+                  </li>
+                ))}
+                {!listing.pickup_available && listing.listing_delivery_options.length === 0 && (
+                  <li className="text-slate-500">Contact the seller to arrange delivery.</li>
+                )}
+              </ul>
+            </div>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -192,7 +269,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               )}
             </div>
 
-            {!isOwner && listing.listing_type === "fixed_price" && listing.status === "active" && (
+            {!isOwner && !isJobsListing && listing.listing_type === "fixed_price" && listing.status === "active" && (
               <div className="mt-3">
                 <AddToCartButton
                   listingId={listing.id}
@@ -208,11 +285,74 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             )}
           </div>
 
+          {isJobsListing && !isOwner && listing.status === "active" && (
+            <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-4 text-lg font-bold text-slate-900">Apply for this job</h2>
+
+              {userJobApplication ? (
+                <div>
+                  <p className="text-sm text-slate-600">
+                    Applied on{" "}
+                    <span className="font-semibold text-slate-900">
+                      {new Date(userJobApplication.created_at).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                  </p>
+                  <form action={withdrawJobApplicationAction.bind(null, userJobApplication.id)} className="mt-3">
+                    <button
+                      type="submit"
+                      className="text-sm font-semibold text-red-600 hover:text-red-700"
+                    >
+                      Withdraw application
+                    </button>
+                  </form>
+                </div>
+              ) : listing.external_apply_url ? (
+                <a
+                  href={listing.external_apply_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full rounded-full bg-orange-500 px-4 py-2.5 text-center text-sm font-bold text-white transition hover:bg-orange-600"
+                >
+                  Apply on company website →
+                </a>
+              ) : !user ? (
+                <div className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700">
+                  <p className="font-semibold">Sign in to apply</p>
+                  <p className="mt-1">You need to be signed in to submit an application.</p>
+                  <Link
+                    href={`/login?next=/listing/${listing.id}`}
+                    className="mt-2 inline-block font-semibold text-orange-600 hover:text-orange-700"
+                  >
+                    Sign in →
+                  </Link>
+                </div>
+              ) : (
+                <JobApplicationForm listingId={listing.id} userId={user.id} />
+              )}
+
+              <div className="mt-4 border-t border-slate-200 pt-4">
+                <p className="text-xs text-slate-500 mb-3">Or contact the employer directly:</p>
+                <form action={startConversationAction.bind(null, listing.id)}>
+                  <button
+                    type="submit"
+                    className="w-full rounded-full border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Message employer
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
           {listing.profiles && !isOwner && (
             <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  Seller
+                  {isJobsListing ? "Employer" : "Seller"}
                 </h2>
                 {listing.profiles.account_type === "business" && (
                   <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-orange-600">
@@ -239,14 +379,16 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                   ? "View business profile & all listings →"
                   : "View profile & other listings →"}
               </Link>
-              <form action={startConversationAction.bind(null, listing.id)} className="mt-4">
-                <button
-                  type="submit"
-                  className="w-full rounded-full bg-slate-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-orange-500"
-                >
-                  Message seller
-                </button>
-              </form>
+              {!isJobsListing && (
+                <form action={startConversationAction.bind(null, listing.id)} className="mt-4">
+                  <button
+                    type="submit"
+                    className="w-full rounded-full bg-slate-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-orange-500"
+                  >
+                    Message seller
+                  </button>
+                </form>
+              )}
             </div>
           )}
         </div>

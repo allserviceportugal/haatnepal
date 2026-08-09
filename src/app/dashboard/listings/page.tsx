@@ -19,12 +19,29 @@ export default async function DashboardListingsPage() {
   const { data } = await supabase
     .from("listings")
     .select(
-      "*, listing_images(*), categories(id, name, slug), profiles!listings_seller_id_fkey(id, display_name, district, rating_avg, rating_count)"
+      "*, listing_images(*), categories(id, name, slug, parent_id), profiles!listings_seller_id_fkey(id, display_name, district, rating_avg, rating_count)"
     )
     .eq("seller_id", user.id)
     .order("created_at", { ascending: false });
 
   const listings = data ?? [];
+
+  // Fetch application counts for jobs listings
+  const jobsListingIds = listings
+    .filter((l) => l.categories?.slug === "jobs" || (l.categories?.parent_id && l.categories?.slug?.includes("-")))
+    .map((l) => l.id);
+
+  let applicationCounts: Record<string, number> = {};
+  if (jobsListingIds.length > 0) {
+    const { data: appCounts } = await supabase
+      .from("job_applications")
+      .select("listing_id")
+      .in("listing_id", jobsListingIds);
+
+    appCounts?.forEach((app) => {
+      applicationCounts[app.listing_id] = (applicationCounts[app.listing_id] ?? 0) + 1;
+    });
+  }
 
   return (
     <div>
@@ -43,7 +60,11 @@ export default async function DashboardListingsPage() {
       ) : (
         <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {listings.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
+            <ListingCard
+              key={listing.id}
+              listing={listing}
+              applicantCount={applicationCounts[listing.id]}
+            />
           ))}
         </div>
       )}

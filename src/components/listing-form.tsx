@@ -50,6 +50,41 @@ export function ListingForm({
   // Cascade state: array of selected category IDs at each level.
   const [categoryPath, setCategoryPath] = useState<string[]>(initialCategoryPath);
 
+  // Land area unit system (for real-estate listings)
+  const [landUnitSystem, setLandUnitSystem] = useState<
+    "ropani_system" | "bigha_system" | "sqft" | "sqm" | ""
+  >((defaultValues?.land_unit_system as any) ?? "");
+
+  // Salary period (for jobs)
+  const [salaryPeriod, setSalaryPeriod] = useState<"monthly" | "yearly" | "hourly" | "daily" | "">(
+    (defaultValues?.salary_period as any) ?? ""
+  );
+
+  // The effective category is the last selected one in the path.
+  const effectiveCategoryId = categoryPath[categoryPath.length - 1] ?? "";
+
+  // Helper: check if a category (or its ancestors) is in the real-estate tree
+  const isRealEstateListing = useMemo(() => {
+    const categoryMap = new Map(categories.map((c) => [c.id, c]));
+    let current = effectiveCategoryId ? categoryMap.get(effectiveCategoryId) : null;
+    while (current) {
+      if (current.slug === "real-estate") return true;
+      current = current.parent_id ? categoryMap.get(current.parent_id) : null;
+    }
+    return false;
+  }, [effectiveCategoryId, categories]);
+
+  // Helper: check if a category (or its ancestors) is in the jobs tree
+  const isJobsListing = useMemo(() => {
+    const categoryMap = new Map(categories.map((c) => [c.id, c]));
+    let current = effectiveCategoryId ? categoryMap.get(effectiveCategoryId) : null;
+    while (current) {
+      if (current.slug === "jobs") return true;
+      current = current.parent_id ? categoryMap.get(current.parent_id) : null;
+    }
+    return false;
+  }, [effectiveCategoryId, categories]);
+
   // Build the cascading levels. For each level, if there are children for the current selection, render a new select.
   const categoryLevels = useMemo(() => {
     const levels: { id: string; options: typeof categories; selected: string }[] = [];
@@ -81,9 +116,6 @@ export function ListingForm({
 
     return levels;
   }, [categoryPath, categories]);
-
-  // The effective category is the last selected one in the path.
-  const effectiveCategoryId = categoryPath[categoryPath.length - 1] ?? "";
 
   const categoriesById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
@@ -187,29 +219,40 @@ export function ListingForm({
           </div>
         ))}
 
-        <div>
-          <label className="block text-sm font-semibold text-slate-700">Condition</label>
-          <select
-            name="condition"
-            defaultValue={defaultValues?.condition ?? "used"}
-            className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
-          >
-            <option value="new">New</option>
-            <option value="used">Used</option>
-          </select>
-        </div>
+        {!isJobsListing && (
+          <>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Condition</label>
+              <select
+                name="condition"
+                defaultValue={defaultValues?.condition ?? "used"}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+              >
+                <option value="new">New</option>
+                <option value="used">Used</option>
+              </select>
+            </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-slate-700">Listing type</label>
-          <select
-            name="listingType"
-            defaultValue={defaultValues?.listing_type ?? "classified"}
-            className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
-          >
-            <option value="classified">Classified (negotiate in chat)</option>
-            <option value="fixed_price">Fixed price (buy now)</option>
-          </select>
-        </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Listing type</label>
+              <select
+                name="listingType"
+                defaultValue={defaultValues?.listing_type ?? "classified"}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+              >
+                <option value="classified">Classified (negotiate in chat)</option>
+                <option value="fixed_price">Fixed price (buy now)</option>
+              </select>
+            </div>
+          </>
+        )}
+
+        {isJobsListing && (
+          <>
+            <input type="hidden" name="condition" value="used" />
+            <input type="hidden" name="listingType" value="classified" />
+          </>
+        )}
 
         <div>
           <label className="block text-sm font-semibold text-slate-700">District</label>
@@ -228,6 +271,45 @@ export function ListingForm({
           </select>
         </div>
 
+        {isRealEstateListing && (
+          <>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Municipality / Gaunpalika (optional)</label>
+              <input
+                type="text"
+                name="municipality"
+                defaultValue={defaultValues?.municipality ?? ""}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                placeholder="e.g. Kathmandu Metropolitan City"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Ward number (optional)</label>
+              <input
+                type="number"
+                name="ward_number"
+                min={1}
+                max={99}
+                defaultValue={defaultValues?.ward_number ?? ""}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                placeholder="e.g. 5"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Tole / Neighborhood (optional)</label>
+              <input
+                type="text"
+                name="tole"
+                defaultValue={defaultValues?.tole ?? ""}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                placeholder="e.g. Baneshwor"
+              />
+            </div>
+          </>
+        )}
+
         <div>
           <label className="block text-sm font-semibold text-slate-700">City / area (optional)</label>
           <input
@@ -238,6 +320,276 @@ export function ListingForm({
           />
         </div>
       </div>
+
+      {isRealEstateListing && (
+        <div>
+          <h3 className="mb-4 text-lg font-bold text-slate-900">Land Area & Price</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Unit system</label>
+              <select
+                value={landUnitSystem}
+                onChange={(e) => setLandUnitSystem(e.target.value as any)}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+              >
+                <option value="">Choose a unit system...</option>
+                <option value="ropani_system">Ropani (रोपनी) — Ropani, Aana, Paisa, Daam</option>
+                <option value="bigha_system">Bigha (बिघा) — Bigha, Kattha, Dhur</option>
+                <option value="sqft">Square Feet (sqft)</option>
+                <option value="sqm">Square Meters (sqm)</option>
+              </select>
+            </div>
+
+            {landUnitSystem === "ropani_system" && (
+              <div className="grid gap-4 sm:grid-cols-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                    Ropani (रोपनी)
+                  </label>
+                  <input
+                    type="number"
+                    name="land_ropani"
+                    min={0}
+                    defaultValue={defaultValues?.land_ropani ?? ""}
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                    Aana (आना)
+                  </label>
+                  <input
+                    type="number"
+                    name="land_aana"
+                    min={0}
+                    max={15}
+                    defaultValue={defaultValues?.land_aana ?? ""}
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                    Paisa (पैसा)
+                  </label>
+                  <input
+                    type="number"
+                    name="land_paisa"
+                    min={0}
+                    max={3}
+                    defaultValue={defaultValues?.land_paisa ?? ""}
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                    Daam (दाम)
+                  </label>
+                  <input
+                    type="number"
+                    name="land_daam"
+                    min={0}
+                    max={3}
+                    defaultValue={defaultValues?.land_daam ?? ""}
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            )}
+
+            {landUnitSystem === "bigha_system" && (
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                    Bigha (बिघा)
+                  </label>
+                  <input
+                    type="number"
+                    name="land_bigha"
+                    min={0}
+                    defaultValue={defaultValues?.land_bigha ?? ""}
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                    Kattha (कट्ठा)
+                  </label>
+                  <input
+                    type="number"
+                    name="land_kattha"
+                    min={0}
+                    max={19}
+                    defaultValue={defaultValues?.land_kattha ?? ""}
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                    Dhur (धुर)
+                  </label>
+                  <input
+                    type="number"
+                    name="land_dhur"
+                    min={0}
+                    max={19}
+                    defaultValue={defaultValues?.land_dhur ?? ""}
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            )}
+
+            {landUnitSystem === "sqft" && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                  Area (sqft)
+                </label>
+                <input
+                  type="number"
+                  name="land_area_sqft"
+                  min={0}
+                  step="0.01"
+                  defaultValue={defaultValues?.land_area_sqft ?? ""}
+                  className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                  placeholder="e.g. 5000"
+                />
+              </div>
+            )}
+
+            {landUnitSystem === "sqm" && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                  Area (sqm)
+                </label>
+                <input
+                  type="number"
+                  name="land_area_sqft"
+                  min={0}
+                  step="0.01"
+                  defaultValue={defaultValues?.land_area_sqft ?? ""}
+                  className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                  placeholder="e.g. 464"
+                />
+              </div>
+            )}
+
+            <input type="hidden" name="land_unit_system" value={landUnitSystem} />
+          </div>
+        </div>
+      )}
+
+      {isJobsListing && (
+        <div>
+          <h3 className="mb-4 text-lg font-bold text-slate-900">Job Details</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Company / Organization name (optional)</label>
+              <input
+                type="text"
+                name="company_name"
+                maxLength={200}
+                defaultValue={defaultValues?.company_name ?? ""}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                placeholder="e.g. Acme Corporation (or leave blank to use your profile name)"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Number of vacancies (optional)</label>
+              <input
+                type="number"
+                name="vacancies_count"
+                min={1}
+                defaultValue={defaultValues?.vacancies_count ?? ""}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                placeholder="e.g. 3"
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Salary min (optional)</label>
+                <input
+                  type="number"
+                  name="salary_min"
+                  min={0}
+                  step="0.01"
+                  defaultValue={defaultValues?.salary_min ?? ""}
+                  className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                  placeholder="e.g. 40000"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Salary max (optional)</label>
+                <input
+                  type="number"
+                  name="salary_max"
+                  min={0}
+                  step="0.01"
+                  defaultValue={defaultValues?.salary_max ?? ""}
+                  className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                  placeholder="e.g. 60000"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Salary period (optional)</label>
+              <select
+                value={salaryPeriod}
+                onChange={(e) => setSalaryPeriod(e.target.value as any)}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+              >
+                <option value="">Select a period...</option>
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+                <option value="hourly">Hourly</option>
+                <option value="daily">Daily</option>
+              </select>
+              <input type="hidden" name="salary_period" value={salaryPeriod} />
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                name="salary_negotiable"
+                defaultChecked={defaultValues?.salary_negotiable ?? false}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Salary is negotiable
+            </label>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Application deadline (optional)</label>
+              <input
+                type="date"
+                name="application_deadline"
+                defaultValue={defaultValues?.application_deadline ?? ""}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">External application URL (optional)</label>
+              <input
+                type="url"
+                name="external_apply_url"
+                defaultValue={defaultValues?.external_apply_url ?? ""}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                placeholder="https://careers.example.com/apply — leave blank to let candidates apply directly on haatnepal"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {attributesForCategory.length > 0 && (
         <div>
@@ -311,34 +663,36 @@ export function ListingForm({
         </div>
       )}
 
-      <div>
-        <label className="block text-sm font-semibold text-slate-700">Delivery</label>
-        <label className="mt-2 flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            name="pickupAvailable"
-            defaultChecked={defaultValues?.pickup_available ?? true}
-            className="h-4 w-4 rounded border-slate-300"
-          />
-          Buyer can pick up in person
-        </label>
-        {couriers.length > 0 && (
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {couriers.map((courier) => (
-              <label key={courier.id} className="flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  name="courierIds"
-                  value={courier.id}
-                  defaultChecked={defaultValues?.courierIds?.includes(courier.id) ?? false}
-                  className="h-4 w-4 rounded border-slate-300"
-                />
-                {courier.name} — NPR {courier.base_cost_npr}
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
+      {!isRealEstateListing && !isJobsListing && (
+        <div>
+          <label className="block text-sm font-semibold text-slate-700">Delivery</label>
+          <label className="mt-2 flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              name="pickupAvailable"
+              defaultChecked={defaultValues?.pickup_available ?? true}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            Buyer can pick up in person
+          </label>
+          {couriers.length > 0 && (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {couriers.map((courier) => (
+                <label key={courier.id} className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    name="courierIds"
+                    value={courier.id}
+                    defaultChecked={defaultValues?.courierIds?.includes(courier.id) ?? false}
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                  {courier.name} — NPR {courier.base_cost_npr}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-semibold text-slate-700">Photos</label>

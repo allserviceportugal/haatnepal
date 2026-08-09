@@ -21,6 +21,7 @@ export function CategoryFilterSidebar({
   categoryName,
   subcategories,
   attributes,
+  isJobsCategory,
 }: {
   formAction: string;
   defaultValues: FilterValues;
@@ -28,8 +29,10 @@ export function CategoryFilterSidebar({
   categoryName?: string;
   subcategories?: Category[];
   attributes?: CategoryAttribute[];
+  isJobsCategory?: boolean;
 }) {
   const selectAttributes = (attributes ?? []).filter((a) => a.input_type === "select");
+  const employmentTypeAttr = selectAttributes.find((a) => a.key === "employment_type");
 
   return (
     <aside className="space-y-4">
@@ -100,30 +103,34 @@ export function CategoryFilterSidebar({
           </select>
         </div>
 
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Condition</p>
-          <div className="mt-2 space-y-1.5">
-            {[
-              { value: "", label: "Any" },
-              { value: "new", label: "New" },
-              { value: "used", label: "Used" },
-            ].map((option) => (
-              <label key={option.label} className="flex items-center gap-2 text-sm text-slate-600">
-                <input
-                  type="radio"
-                  name="condition"
-                  value={option.value}
-                  defaultChecked={(defaultValues.condition ?? "") === option.value}
-                  className="h-3.5 w-3.5"
-                />
-                {option.label}
-              </label>
-            ))}
+        {!isJobsCategory && (
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Condition</p>
+            <div className="mt-2 space-y-1.5">
+              {[
+                { value: "", label: "Any" },
+                { value: "new", label: "New" },
+                { value: "used", label: "Used" },
+              ].map((option) => (
+                <label key={option.label} className="flex items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="radio"
+                    name="condition"
+                    value={option.value}
+                    defaultChecked={(defaultValues.condition ?? "") === option.value}
+                    className="h-3.5 w-3.5"
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Sold by</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+            {isJobsCategory ? "Employer type" : "Sold by"}
+          </p>
           <div className="mt-2 space-y-1.5">
             {[
               { value: "", label: "Anyone" },
@@ -144,12 +151,44 @@ export function CategoryFilterSidebar({
           </div>
         </div>
 
+        {isJobsCategory && employmentTypeAttr && (
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Employment Type</p>
+            <div className="mt-2 space-y-1.5">
+              <label className="flex items-center gap-2 text-sm text-slate-600">
+                <input
+                  type="radio"
+                  name={`attr_${employmentTypeAttr.id}`}
+                  value=""
+                  defaultChecked={!defaultValues[`attr_${employmentTypeAttr.id}`]}
+                  className="h-3.5 w-3.5"
+                />
+                Any type
+              </label>
+              {(employmentTypeAttr.options ?? []).map((option) => (
+                <label key={option} className="flex items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="radio"
+                    name={`attr_${employmentTypeAttr.id}`}
+                    value={option}
+                    defaultChecked={defaultValues[`attr_${employmentTypeAttr.id}`] === option}
+                    className="h-3.5 w-3.5"
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Price (NPR)</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+            {isJobsCategory ? "Salary (NPR)" : "Price (NPR)"}
+          </p>
           <div className="mt-2 flex gap-2">
             <input
               type="number"
-              name="minPrice"
+              name={isJobsCategory ? "minSalary" : "minPrice"}
               min={0}
               placeholder="Min"
               defaultValue={defaultValues.minPrice}
@@ -157,7 +196,7 @@ export function CategoryFilterSidebar({
             />
             <input
               type="number"
-              name="maxPrice"
+              name={isJobsCategory ? "maxSalary" : "maxPrice"}
               min={0}
               placeholder="Max"
               defaultValue={defaultValues.maxPrice}

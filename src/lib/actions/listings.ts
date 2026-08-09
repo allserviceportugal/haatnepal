@@ -18,6 +18,26 @@ function parseListingForm(formData: FormData) {
     listingType: formData.get("listingType"),
     district: formData.get("district"),
     city: formData.get("city"),
+    municipality: formData.get("municipality"),
+    ward_number: formData.get("ward_number"),
+    tole: formData.get("tole"),
+    land_unit_system: formData.get("land_unit_system"),
+    land_ropani: formData.get("land_ropani"),
+    land_aana: formData.get("land_aana"),
+    land_paisa: formData.get("land_paisa"),
+    land_daam: formData.get("land_daam"),
+    land_bigha: formData.get("land_bigha"),
+    land_kattha: formData.get("land_kattha"),
+    land_dhur: formData.get("land_dhur"),
+    land_area_sqft: formData.get("land_area_sqft"),
+    company_name: formData.get("company_name"),
+    salary_min: formData.get("salary_min"),
+    salary_max: formData.get("salary_max"),
+    salary_period: formData.get("salary_period"),
+    salary_negotiable: formData.get("salary_negotiable") === "on",
+    vacancies_count: formData.get("vacancies_count"),
+    application_deadline: formData.get("application_deadline"),
+    external_apply_url: formData.get("external_apply_url"),
   });
 }
 
@@ -29,19 +49,19 @@ function startOfCurrentMonthISO() {
 async function checkListingQuota(
   supabase: SupabaseClient,
   userId: string
-): Promise<string | null> {
+): Promise<{ error: string | null; listing_duration_days: number | null }> {
   const { data: profile } = await supabase
     .from("profiles")
-    .select("subscription_plan_id, subscription_plans(name, monthly_listing_quota)")
+    .select("subscription_plan_id, subscription_plans(name, monthly_listing_quota, listing_duration_days)")
     .eq("id", userId)
     .single();
 
   const plan = (
-    profile as unknown as { subscription_plans: { name: string; monthly_listing_quota: number | null } | null } | null
+    profile as unknown as { subscription_plans: { name: string; monthly_listing_quota: number | null; listing_duration_days: number | null } | null } | null
   )?.subscription_plans;
 
   if (!plan || plan.monthly_listing_quota === null) {
-    return null; // unlimited (or no plan resolved — fail open rather than block posting)
+    return { error: null, listing_duration_days: plan?.listing_duration_days ?? null }; // unlimited (or no plan resolved — fail open rather than block posting)
   }
 
   const { count } = await supabase
@@ -51,10 +71,13 @@ async function checkListingQuota(
     .gte("created_at", startOfCurrentMonthISO());
 
   if ((count ?? 0) >= plan.monthly_listing_quota) {
-    return `You've used all ${plan.monthly_listing_quota} of your free listings this month on the ${plan.name} plan. Upgrade on the Plan page for more.`;
+    return {
+      error: `You've used all ${plan.monthly_listing_quota} of your free listings this month on the ${plan.name} plan. Upgrade on the Plan page for more.`,
+      listing_duration_days: plan.listing_duration_days,
+    };
   }
 
-  return null;
+  return { error: null, listing_duration_days: plan.listing_duration_days };
 }
 
 async function saveAttributeValues(supabase: SupabaseClient, listingId: string, formData: FormData) {
@@ -105,14 +128,19 @@ export async function createListingAction(
     return { error: parsed.error.issues[0]?.message ?? "Please check the form and try again." };
   }
 
-  const quotaError = await checkListingQuota(supabase, user.id);
-  if (quotaError) {
-    return { error: quotaError };
+  const quotaCheckResult = await checkListingQuota(supabase, user.id);
+  if (quotaCheckResult.error) {
+    return { error: quotaCheckResult.error };
   }
 
-  const { title, description, price, categoryId, condition, listingType, district, city } =
+  const { title, description, price, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url } =
     parsed.data;
   const pickupAvailable = formData.get("pickupAvailable") === "on";
+
+  // Compute expires_at based on listing_duration_days from the subscription plan
+  const now = new Date();
+  const durationDays = quotaCheckResult.listing_duration_days ?? 60; // Default to 60 if not set
+  const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString();
 
   const { data: listing, error } = await supabase
     .from("listings")
@@ -127,6 +155,27 @@ export async function createListingAction(
       district,
       city: city || null,
       pickup_available: pickupAvailable,
+      municipality: municipality || null,
+      ward_number: ward_number ? parseInt(String(ward_number), 10) : null,
+      tole: tole || null,
+      land_unit_system: land_unit_system || null,
+      land_ropani: land_ropani ? parseInt(String(land_ropani), 10) : null,
+      land_aana: land_aana ? parseInt(String(land_aana), 10) : null,
+      land_paisa: land_paisa ? parseInt(String(land_paisa), 10) : null,
+      land_daam: land_daam ? parseInt(String(land_daam), 10) : null,
+      land_bigha: land_bigha ? parseInt(String(land_bigha), 10) : null,
+      land_kattha: land_kattha ? parseInt(String(land_kattha), 10) : null,
+      land_dhur: land_dhur ? parseInt(String(land_dhur), 10) : null,
+      land_area_sqft: land_area_sqft ? parseFloat(String(land_area_sqft)) : null,
+      company_name: company_name || null,
+      salary_min: salary_min ? parseFloat(String(salary_min)) : null,
+      salary_max: salary_max ? parseFloat(String(salary_max)) : null,
+      salary_period: salary_period || null,
+      salary_negotiable: salary_negotiable,
+      vacancies_count: vacancies_count ? parseInt(String(vacancies_count), 10) : null,
+      application_deadline: application_deadline || null,
+      external_apply_url: external_apply_url || null,
+      expires_at: expiresAt,
     })
     .select("id")
     .single();
@@ -171,7 +220,7 @@ export async function updateListingAction(
     return { error: parsed.error.issues[0]?.message ?? "Please check the form and try again." };
   }
 
-  const { title, description, price, categoryId, condition, listingType, district, city } =
+  const { title, description, price, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url } =
     parsed.data;
   const pickupAvailable = formData.get("pickupAvailable") === "on";
 
@@ -187,6 +236,26 @@ export async function updateListingAction(
       district,
       city: city || null,
       pickup_available: pickupAvailable,
+      municipality: municipality || null,
+      ward_number: ward_number ? parseInt(String(ward_number), 10) : null,
+      tole: tole || null,
+      land_unit_system: land_unit_system || null,
+      land_ropani: land_ropani ? parseInt(String(land_ropani), 10) : null,
+      land_aana: land_aana ? parseInt(String(land_aana), 10) : null,
+      land_paisa: land_paisa ? parseInt(String(land_paisa), 10) : null,
+      land_daam: land_daam ? parseInt(String(land_daam), 10) : null,
+      land_bigha: land_bigha ? parseInt(String(land_bigha), 10) : null,
+      land_kattha: land_kattha ? parseInt(String(land_kattha), 10) : null,
+      land_dhur: land_dhur ? parseInt(String(land_dhur), 10) : null,
+      land_area_sqft: land_area_sqft ? parseFloat(String(land_area_sqft)) : null,
+      company_name: company_name || null,
+      salary_min: salary_min ? parseFloat(String(salary_min)) : null,
+      salary_max: salary_max ? parseFloat(String(salary_max)) : null,
+      salary_period: salary_period || null,
+      salary_negotiable: salary_negotiable,
+      vacancies_count: vacancies_count ? parseInt(String(vacancies_count), 10) : null,
+      application_deadline: application_deadline || null,
+      external_apply_url: external_apply_url || null,
     })
     .eq("id", listingId)
     .eq("seller_id", user.id);

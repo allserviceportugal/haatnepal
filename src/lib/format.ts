@@ -21,3 +21,39 @@ export function timeAgo(dateString: string) {
   const years = Math.floor(months / 12);
   return `${years} year${years === 1 ? "" : "s"} ago`;
 }
+
+export function formatSalary(
+  salaryMin: number | null | undefined,
+  salaryMax: number | null | undefined,
+  salaryPeriod: string | null | undefined,
+  salaryNegotiable: boolean | null | undefined
+): string | null {
+  if (!salaryMin && !salaryMax && !salaryNegotiable) {
+    return null;
+  }
+
+  if (salaryNegotiable && !salaryMin && !salaryMax) {
+    return "Negotiable";
+  }
+
+  const periodLabel = {
+    monthly: "/ month",
+    yearly: "/ year",
+    hourly: "/ hour",
+    daily: "/ day",
+  }[salaryPeriod as string] || "";
+
+  if (salaryMin && salaryMax) {
+    return `NPR ${new Intl.NumberFormat("en-IN").format(salaryMin)} – ${new Intl.NumberFormat("en-IN").format(salaryMax)} ${periodLabel}`.trim();
+  }
+
+  if (salaryMin) {
+    return `From NPR ${new Intl.NumberFormat("en-IN").format(salaryMin)} ${periodLabel}`.trim();
+  }
+
+  if (salaryMax) {
+    return `Up to NPR ${new Intl.NumberFormat("en-IN").format(salaryMax)} ${periodLabel}`.trim();
+  }
+
+  return null;
+}
