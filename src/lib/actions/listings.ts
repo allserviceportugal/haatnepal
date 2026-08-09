@@ -46,6 +46,12 @@ function parseListingForm(formData: FormData) {
     isModified: formData.get("isModified") === "on",
     accidentHistory: formData.get("accidentHistory") === "on",
     serviceHistory: formData.get("serviceHistory"),
+    foodFreshness: formData.get("foodFreshness"),
+    bestBeforeDate: formData.get("bestBeforeDate"),
+    manufacturingDate: formData.get("manufacturingDate"),
+    ingredients: formData.get("ingredients"),
+    storageInstructions: formData.get("storageInstructions"),
+    allergenInfo: formData.get("allergenInfo"),
   });
 }
 
@@ -141,7 +147,7 @@ export async function createListingAction(
     return { error: quotaCheckResult.error };
   }
 
-  const { title, description, price, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, registrationYear, manufacturingYear, bluebookStatus, importStatus, ownerCount, isModified, accidentHistory, serviceHistory } =
+  const { title, description, price, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, registrationYear, manufacturingYear, bluebookStatus, importStatus, ownerCount, isModified, accidentHistory, serviceHistory, foodFreshness, bestBeforeDate, manufacturingDate, ingredients, storageInstructions, allergenInfo } =
     parsed.data;
   const pickupAvailable = formData.get("pickupAvailable") === "on";
 
@@ -191,6 +197,13 @@ export async function createListingAction(
       is_modified: isModified,
       accident_history: accidentHistory,
       service_history: serviceHistory || null,
+      food_freshness: foodFreshness || null,
+      best_before_date: bestBeforeDate || null,
+      manufacturing_date: manufacturingDate || null,
+      ingredients: ingredients || null,
+      storage_instructions: storageInstructions || null,
+      allergen_info: allergenInfo || null,
+      is_food: foodFreshness ? true : false,
       expires_at: expiresAt,
     })
     .select("id")
@@ -236,7 +249,7 @@ export async function updateListingAction(
     return { error: parsed.error.issues[0]?.message ?? "Please check the form and try again." };
   }
 
-  const { title, description, price, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url } =
+  const { title, description, price, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, foodFreshness, bestBeforeDate, manufacturingDate, ingredients, storageInstructions, allergenInfo } =
     parsed.data;
   const pickupAvailable = formData.get("pickupAvailable") === "on";
 
@@ -272,6 +285,12 @@ export async function updateListingAction(
       vacancies_count: vacancies_count ? parseInt(String(vacancies_count), 10) : null,
       application_deadline: application_deadline || null,
       external_apply_url: external_apply_url || null,
+      food_freshness: foodFreshness || null,
+      best_before_date: bestBeforeDate || null,
+      manufacturing_date: manufacturingDate || null,
+      ingredients: ingredients || null,
+      storage_instructions: storageInstructions || null,
+      allergen_info: allergenInfo || null,
     })
     .eq("id", listingId)
     .eq("seller_id", user.id);

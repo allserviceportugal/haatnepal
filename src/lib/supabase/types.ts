@@ -129,6 +129,13 @@ export type Listing = {
   service_history: string | null;
   listing_number: number;
   view_count: number;
+  food_freshness: string | null;
+  best_before_date: string | null;
+  manufacturing_date: string | null;
+  ingredients: string | null;
+  storage_instructions: string | null;
+  allergen_info: string | null;
+  is_food: boolean;
   created_at: string;
   updated_at: string;
   expires_at: string;
@@ -167,6 +174,12 @@ export type DraftListing = {
   is_modified: boolean;
   accident_history: boolean;
   service_history: string | null;
+  food_freshness: string | null;
+  best_before_date: string | null;
+  manufacturing_date: string | null;
+  ingredients: string | null;
+  storage_instructions: string | null;
+  allergen_info: string | null;
   category_path: Record<string, string> | null;
   attribute_values: Record<string, string>;
   courier_ids: string[] | null;

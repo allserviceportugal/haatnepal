@@ -66,6 +66,14 @@ export function ListingForm({
     (defaultValues?.salary_period as any) ?? ""
   );
 
+  // Food-specific fields
+  const [foodFreshness, setFoodFreshness] = useState<string>((defaultValues?.food_freshness as any) ?? "");
+  const [bestBeforeDate, setBestBeforeDate] = useState<string>((defaultValues?.best_before_date as any) ?? "");
+  const [manufacturingDate, setManufacturingDate] = useState<string>((defaultValues?.manufacturing_date as any) ?? "");
+  const [ingredients, setIngredients] = useState<string>((defaultValues?.ingredients as any) ?? "");
+  const [storageInstructions, setStorageInstructions] = useState<string>((defaultValues?.storage_instructions as any) ?? "");
+  const [allergenInfo, setAllergenInfo] = useState<string>((defaultValues?.allergen_info as any) ?? "");
+
   // The effective category is the last selected one in the path.
   const effectiveCategoryId = categoryPath[categoryPath.length - 1] ?? "";
 
@@ -108,6 +116,17 @@ export function ListingForm({
     let current = effectiveCategoryId ? categoryMap.get(effectiveCategoryId) : null;
     while (current) {
       if (current.slug === "fashion") return true;
+      current = current.parent_id ? categoryMap.get(current.parent_id) : null;
+    }
+    return false;
+  }, [effectiveCategoryId, categories]);
+
+  // Helper: check if a category (or its ancestors) is in the food-beverages tree
+  const isFoodListing = useMemo(() => {
+    const categoryMap = new Map(categories.map((c) => [c.id, c]));
+    let current = effectiveCategoryId ? categoryMap.get(effectiveCategoryId) : null;
+    while (current) {
+      if (current.slug === "food-beverages") return true;
       current = current.parent_id ? categoryMap.get(current.parent_id) : null;
     }
     return false;
@@ -801,6 +820,94 @@ export function ListingForm({
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {isFoodListing && (
+        <div>
+          <h3 className="mb-4 text-lg font-bold text-slate-900">Food Product Details</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Product Freshness Status (optional)</label>
+              <select
+                value={foodFreshness}
+                onChange={(e) => setFoodFreshness(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+              >
+                <option value="">Select status...</option>
+                <option value="fresh">Fresh</option>
+                <option value="frozen">Frozen</option>
+                <option value="chilled">Chilled</option>
+                <option value="packaged">Packaged</option>
+                <option value="dried">Dried</option>
+                <option value="processed">Processed</option>
+              </select>
+              <input type="hidden" name="foodFreshness" value={foodFreshness} />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700">Best Before / Expiry Date (optional)</label>
+                <input
+                  type="date"
+                  value={bestBeforeDate}
+                  onChange={(e) => setBestBeforeDate(e.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                />
+                <input type="hidden" name="bestBeforeDate" value={bestBeforeDate} />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700">Manufacturing Date (optional)</label>
+                <input
+                  type="date"
+                  value={manufacturingDate}
+                  onChange={(e) => setManufacturingDate(e.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                />
+                <input type="hidden" name="manufacturingDate" value={manufacturingDate} />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Ingredients (optional)</label>
+              <textarea
+                value={ingredients}
+                onChange={(e) => setIngredients(e.target.value)}
+                maxLength={1000}
+                rows={3}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                placeholder="e.g. Basmati Rice, Salt, Oil — or leave blank if not applicable"
+              />
+              <input type="hidden" name="ingredients" value={ingredients} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Storage Instructions (optional)</label>
+              <textarea
+                value={storageInstructions}
+                onChange={(e) => setStorageInstructions(e.target.value)}
+                maxLength={500}
+                rows={2}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                placeholder="e.g. Keep in cool, dry place — or Keep refrigerated"
+              />
+              <input type="hidden" name="storageInstructions" value={storageInstructions} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Allergen Information (optional)</label>
+              <textarea
+                value={allergenInfo}
+                onChange={(e) => setAllergenInfo(e.target.value)}
+                maxLength={500}
+                rows={2}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                placeholder="e.g. Contains nuts, dairy — or leave blank if none"
+              />
+              <input type="hidden" name="allergenInfo" value={allergenInfo} />
+            </div>
           </div>
         </div>
       )}
