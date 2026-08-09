@@ -20,6 +20,8 @@ export type Profile = {
   business_description: string | null;
   logo_url: string | null;
   cover_image_url: string | null;
+  province: string | null;
+  email: string | null;
   created_at: string;
 };
 
@@ -29,6 +31,7 @@ export type SubscriptionPlan = {
   name: string;
   monthly_listing_quota: number | null;
   monthly_featured_quota: number | null;
+  listing_duration_days: number | null;
   allows_promoted_listings: boolean;
   allows_storefront_branding: boolean;
   is_paid: boolean;
@@ -93,6 +96,21 @@ export type Listing = {
   pickup_available: boolean;
   featured_at: string | null;
   featured_until: string | null;
+  province: string | null;
+  municipality: string | null;
+  ward_number: number | null;
+  tole: string | null;
+  land_unit_system: "ropani_system" | "bigha_system" | "sqft" | "sqm" | null;
+  land_ropani: number | null;
+  land_aana: number | null;
+  land_paisa: number | null;
+  land_daam: number | null;
+  land_bigha: number | null;
+  land_kattha: number | null;
+  land_dhur: number | null;
+  land_area_sqft: number | null;
+  listing_number: number;
+  view_count: number;
   created_at: string;
   updated_at: string;
   expires_at: string;
@@ -170,6 +188,24 @@ export type ConversationWithRelations = Conversation & {
 export type TimelineEntry =
   | { kind: "message"; created_at: string; message: Message }
   | { kind: "offer"; created_at: string; offer: Offer };
+
+export type ListingComment = {
+  id: string;
+  listing_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+};
+
+export type Review = {
+  id: string;
+  reviewee_id: string;
+  reviewer_id: string;
+  rating: 1 | 2 | 3 | 4 | 5;
+  body: string | null;
+  created_at: string;
+  updated_at: string;
+};
 
 export type ListingWithRelations = Listing & {
   listing_images: ListingImage[];
