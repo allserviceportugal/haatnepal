@@ -42,7 +42,8 @@ create policy "Vehicle brands are publicly readable"
 -- ---------------------------------------------------------------------------
 -- Create draft_listings table for persistent draft support
 -- ---------------------------------------------------------------------------
-create type if not exists public.draft_status as enum ('auto-saved', 'user-saved', 'being-created');
+drop type if exists public.draft_status cascade;
+create type public.draft_status as enum ('auto-saved', 'user-saved', 'being-created');
 
 create table if not exists public.draft_listings (
   id uuid primary key default gen_random_uuid(),
