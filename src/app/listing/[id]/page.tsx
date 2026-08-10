@@ -65,6 +65,11 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     ? await isDescendantOfSlug(supabase, listing.category_id, "jobs")
     : listing.categories?.slug === "jobs";
 
+  // Check if this is an agriculture listing
+  const isAgricultureListing = listing.categories?.parent_id
+    ? await isDescendantOfSlug(supabase, listing.category_id, "agriculture")
+    : listing.categories?.slug === "agriculture";
+
   // Fetch existing job application if user is signed in and this is a jobs listing
   let userJobApplication = null;
   if (isJobsListing && user && !isOwner) {
@@ -190,6 +195,62 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             </div>
           )}
 
+          {isAgricultureListing && (
+            <div className="mt-8 rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900">
+                {listing.for_rent ? "Service Details" : "Farm & Product Details"}
+              </h2>
+              <dl className="mt-4 space-y-3">
+                {listing.harvest_date && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-sm font-semibold text-slate-600">Harvest / Production Date</dt>
+                    <dd className="text-sm font-semibold text-slate-900">
+                      {new Date(listing.harvest_date).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </dd>
+                  </div>
+                )}
+
+                {listing.unit_of_sale && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-sm font-semibold text-slate-600">Unit of Sale</dt>
+                    <dd className="text-sm font-semibold text-slate-900">{listing.unit_of_sale}</dd>
+                  </div>
+                )}
+
+                {listing.min_order_quantity && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-sm font-semibold text-slate-600">Minimum Order Quantity</dt>
+                    <dd className="text-sm font-semibold text-slate-900">
+                      {listing.min_order_quantity} {listing.unit_of_sale || "units"}
+                    </dd>
+                  </div>
+                )}
+
+                {listing.farm_location && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-sm font-semibold text-slate-600">Farm / Origin Location</dt>
+                    <dd className="text-sm font-semibold text-slate-900">{listing.farm_location}</dd>
+                  </div>
+                )}
+
+                {listing.for_rent && listing.rental_rate_period && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-sm font-semibold text-slate-600">Rate Period</dt>
+                    <dd className="inline-flex items-center gap-2">
+                      <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase text-blue-900">
+                        Per {listing.rental_rate_period}
+                      </span>
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+
           {!isJobsListing && (
             <div className="mt-8 rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-bold text-slate-900">Delivery</h2>
@@ -228,6 +289,14 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             </div>
             <p className="mt-2 text-3xl font-black text-orange-600">
               {formatPrice(listing.price, listing.currency)}
+              {isAgricultureListing && (
+                <>
+                  {listing.unit_of_sale && <span className="ml-2 text-lg text-slate-600">/{listing.unit_of_sale}</span>}
+                  {listing.for_rent && listing.rental_rate_period && (
+                    <span className="ml-2 text-lg text-slate-600">/{listing.rental_rate_period}</span>
+                  )}
+                </>
+              )}
             </p>
             <div className="mt-3 flex items-center justify-between text-sm text-slate-500">
               <span>{listing.city ? `${listing.city}, ${listing.district}` : listing.district}</span>

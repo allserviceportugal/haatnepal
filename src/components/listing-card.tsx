@@ -11,6 +11,9 @@ export function ListingCard({
 }) {
   const image = listing.listing_images[0]?.url;
   const isFeatured = listing.featured_until !== null && new Date(listing.featured_until) > new Date();
+  const isOrganic = listing.listing_attribute_values.some(
+    (row) => row.category_attributes?.key === "organic" && row.value === "true"
+  );
   const href = applicantCount !== undefined ? `/dashboard/listings/${listing.id}/applicants` : `/listing/${listing.id}`;
 
   return (
@@ -62,6 +65,11 @@ export function ListingCard({
               Business
             </span>
           )}
+          {isOrganic && (
+            <span className="rounded bg-green-500 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+              Organic
+            </span>
+          )}
         </div>
         {listing.status === "sold" && (
           <span className="absolute inset-x-2 bottom-2 rounded bg-slate-900/90 px-1.5 py-0.5 text-center text-[10px] font-bold uppercase tracking-wide text-white">
@@ -73,6 +81,9 @@ export function ListingCard({
       <div className="space-y-1.5 p-2.5">
         <p className="text-lg font-black leading-none text-slate-900">
           {formatPrice(listing.price, listing.currency)}
+          {listing.unit_of_sale && (
+            <span className="ml-1 text-xs text-slate-600">/{listing.unit_of_sale}</span>
+          )}
         </p>
         <h3 className="line-clamp-2 text-xs leading-snug text-slate-700">{listing.title}</h3>
         <div className="flex items-center justify-between gap-2 pt-1 text-[11px] text-slate-400">

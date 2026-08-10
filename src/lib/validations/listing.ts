@@ -7,6 +7,7 @@ export const salaryPeriods = ["monthly", "yearly", "hourly", "daily"] as const;
 export const bluebookStatuses = ["clear", "mortgage", "registered-insurance-claim", "customs-hold", "unknown"] as const;
 export const importStatuses = ["local", "imported-used", "imported-new", "reconditioned"] as const;
 export const foodFreshnessStatuses = ["fresh", "frozen", "chilled", "packaged", "dried", "processed"] as const;
+export const rentalRatePeriods = ["hourly", "daily", "weekly", "monthly"] as const;
 
 export const listingSchema = z.object({
   title: z.string().trim().min(5, "Title must be at least 5 characters").max(120),
@@ -51,6 +52,12 @@ export const listingSchema = z.object({
   ingredients: z.string().trim().max(1000).optional().or(z.literal("")),
   storageInstructions: z.string().trim().max(500).optional().or(z.literal("")),
   allergenInfo: z.string().trim().max(500).optional().or(z.literal("")),
+  harvestDate: z.string().date().optional().or(z.literal("")),
+  unitOfSale: z.string().trim().max(40).optional().or(z.literal("")),
+  minOrderQuantity: z.coerce.number().min(0).optional().or(z.literal("")),
+  farmLocation: z.string().trim().max(150).optional().or(z.literal("")),
+  forRent: z.boolean().optional().default(false),
+  rentalRatePeriod: z.enum(rentalRatePeriods).optional().or(z.literal("")),
 });
 
 export type ListingInput = z.infer<typeof listingSchema>;

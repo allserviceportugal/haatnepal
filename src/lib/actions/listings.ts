@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { listingSchema } from "@/lib/validations/listing";
+import { isDescendantOfSlug } from "@/lib/queries/listings";
 
 export type ListingActionState = { error?: string };
 
@@ -52,6 +53,12 @@ function parseListingForm(formData: FormData) {
     ingredients: formData.get("ingredients"),
     storageInstructions: formData.get("storageInstructions"),
     allergenInfo: formData.get("allergenInfo"),
+    harvestDate: formData.get("harvestDate"),
+    unitOfSale: formData.get("unitOfSale"),
+    minOrderQuantity: formData.get("minOrderQuantity"),
+    farmLocation: formData.get("farmLocation"),
+    forRent: formData.get("forRent") === "on",
+    rentalRatePeriod: formData.get("rentalRatePeriod"),
   });
 }
 
@@ -147,7 +154,7 @@ export async function createListingAction(
     return { error: quotaCheckResult.error };
   }
 
-  const { title, description, price, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, registrationYear, manufacturingYear, bluebookStatus, importStatus, ownerCount, isModified, accidentHistory, serviceHistory, foodFreshness, bestBeforeDate, manufacturingDate, ingredients, storageInstructions, allergenInfo } =
+  const { title, description, price, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, registrationYear, manufacturingYear, bluebookStatus, importStatus, ownerCount, isModified, accidentHistory, serviceHistory, foodFreshness, bestBeforeDate, manufacturingDate, ingredients, storageInstructions, allergenInfo, harvestDate, unitOfSale, minOrderQuantity, farmLocation, forRent, rentalRatePeriod } =
     parsed.data;
   const pickupAvailable = formData.get("pickupAvailable") === "on";
 
@@ -155,6 +162,9 @@ export async function createListingAction(
   const now = new Date();
   const durationDays = quotaCheckResult.listing_duration_days ?? 60; // Default to 60 if not set
   const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+
+  // Compute is_agriculture by checking if categoryId is a descendant of "agriculture"
+  const isAgricultureListing = await isDescendantOfSlug(supabase, categoryId, "agriculture");
 
   const { data: listing, error } = await supabase
     .from("listings")
@@ -204,6 +214,13 @@ export async function createListingAction(
       storage_instructions: storageInstructions || null,
       allergen_info: allergenInfo || null,
       is_food: foodFreshness ? true : false,
+      is_agriculture: isAgricultureListing,
+      harvest_date: harvestDate || null,
+      unit_of_sale: unitOfSale || null,
+      min_order_quantity: minOrderQuantity ? parseFloat(String(minOrderQuantity)) : null,
+      farm_location: farmLocation || null,
+      for_rent: forRent,
+      rental_rate_period: rentalRatePeriod || null,
       expires_at: expiresAt,
     })
     .select("id")
@@ -249,9 +266,12 @@ export async function updateListingAction(
     return { error: parsed.error.issues[0]?.message ?? "Please check the form and try again." };
   }
 
-  const { title, description, price, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, foodFreshness, bestBeforeDate, manufacturingDate, ingredients, storageInstructions, allergenInfo } =
+  const { title, description, price, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, foodFreshness, bestBeforeDate, manufacturingDate, ingredients, storageInstructions, allergenInfo, harvestDate, unitOfSale, minOrderQuantity, farmLocation, forRent, rentalRatePeriod } =
     parsed.data;
   const pickupAvailable = formData.get("pickupAvailable") === "on";
+
+  // Compute is_agriculture for update
+  const isAgricultureListing = await isDescendantOfSlug(supabase, categoryId, "agriculture");
 
   const { error } = await supabase
     .from("listings")
@@ -291,6 +311,13 @@ export async function updateListingAction(
       ingredients: ingredients || null,
       storage_instructions: storageInstructions || null,
       allergen_info: allergenInfo || null,
+      is_agriculture: isAgricultureListing,
+      harvest_date: harvestDate || null,
+      unit_of_sale: unitOfSale || null,
+      min_order_quantity: minOrderQuantity ? parseFloat(String(minOrderQuantity)) : null,
+      farm_location: farmLocation || null,
+      for_rent: forRent,
+      rental_rate_period: rentalRatePeriod || null,
     })
     .eq("id", listingId)
     .eq("seller_id", user.id);

@@ -74,6 +74,14 @@ export function ListingForm({
   const [storageInstructions, setStorageInstructions] = useState<string>((defaultValues?.storage_instructions as any) ?? "");
   const [allergenInfo, setAllergenInfo] = useState<string>((defaultValues?.allergen_info as any) ?? "");
 
+  // Agriculture-specific fields
+  const [harvestDate, setHarvestDate] = useState<string>((defaultValues?.harvest_date as any) ?? "");
+  const [unitOfSale, setUnitOfSale] = useState<string>((defaultValues?.unit_of_sale as any) ?? "");
+  const [minOrderQuantity, setMinOrderQuantity] = useState<string>((defaultValues?.min_order_quantity as any) ?? "");
+  const [farmLocation, setFarmLocation] = useState<string>((defaultValues?.farm_location as any) ?? "");
+  const [forRent, setForRent] = useState<boolean>(defaultValues?.for_rent ?? false);
+  const [rentalRatePeriod, setRentalRatePeriod] = useState<string>((defaultValues?.rental_rate_period as any) ?? "");
+
   // The effective category is the last selected one in the path.
   const effectiveCategoryId = categoryPath[categoryPath.length - 1] ?? "";
 
@@ -127,6 +135,17 @@ export function ListingForm({
     let current = effectiveCategoryId ? categoryMap.get(effectiveCategoryId) : null;
     while (current) {
       if (current.slug === "food-beverages") return true;
+      current = current.parent_id ? categoryMap.get(current.parent_id) : null;
+    }
+    return false;
+  }, [effectiveCategoryId, categories]);
+
+  // Helper: check if a category (or its ancestors) is in the agriculture tree
+  const isAgricultureListing = useMemo(() => {
+    const categoryMap = new Map(categories.map((c) => [c.id, c]));
+    let current = effectiveCategoryId ? categoryMap.get(effectiveCategoryId) : null;
+    while (current) {
+      if (current.slug === "agriculture") return true;
       current = current.parent_id ? categoryMap.get(current.parent_id) : null;
     }
     return false;
@@ -908,6 +927,116 @@ export function ListingForm({
               />
               <input type="hidden" name="allergenInfo" value={allergenInfo} />
             </div>
+          </div>
+        </div>
+      )}
+
+      {isAgricultureListing && (
+        <div>
+          <h3 className="mb-4 text-lg font-bold text-slate-900">Farm & Sale Details</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Unit of Sale (optional)</label>
+              <select
+                value={unitOfSale}
+                onChange={(e) => setUnitOfSale(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+              >
+                <option value="">Select unit...</option>
+                <option value="kg">Kilogram (kg)</option>
+                <option value="g">Gram (g)</option>
+                <option value="quintal">Quintal</option>
+                <option value="ton">Metric Ton</option>
+                <option value="litre">Litre (L)</option>
+                <option value="ml">Millilitre (ml)</option>
+                <option value="piece">Piece</option>
+                <option value="dozen">Dozen</option>
+                <option value="crate">Crate</option>
+                <option value="sack">Sack</option>
+                <option value="bag">Bag</option>
+                <option value="bundle">Bundle</option>
+                <option value="tray">Tray</option>
+                <option value="box">Box</option>
+                <option value="bale">Bale</option>
+                <option value="animal">Per Animal</option>
+                <option value="bird">Per Bird</option>
+                <option value="hour">Per Hour</option>
+                <option value="day">Per Day</option>
+              </select>
+              <input type="hidden" name="unitOfSale" value={unitOfSale} />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700">Minimum Order Quantity (optional)</label>
+                <input
+                  type="number"
+                  value={minOrderQuantity}
+                  onChange={(e) => setMinOrderQuantity(e.target.value)}
+                  min={0}
+                  step="0.01"
+                  className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                  placeholder="e.g. 25"
+                />
+                <input type="hidden" name="minOrderQuantity" value={minOrderQuantity} />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700">Harvest / Production Date (optional)</label>
+                <input
+                  type="date"
+                  value={harvestDate}
+                  onChange={(e) => setHarvestDate(e.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                />
+                <input type="hidden" name="harvestDate" value={harvestDate} />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Farm / Origin Location (optional)</label>
+              <input
+                type="text"
+                value={farmLocation}
+                onChange={(e) => setFarmLocation(e.target.value)}
+                maxLength={150}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                placeholder="e.g. Mustang, Ilam, Chitwan — or the farm/producer name"
+              />
+              <input type="hidden" name="farmLocation" value={farmLocation} />
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={forRent}
+                onChange={(e) => setForRent(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              For Rent / Hire / Service (instead of for sale)
+              <input type="hidden" name="forRent" value={forRent ? "on" : ""} />
+            </label>
+
+            {forRent && (
+              <div>
+                <label className="block text-sm font-semibold text-slate-700">Rental Rate Period (optional)</label>
+                <select
+                  value={rentalRatePeriod}
+                  onChange={(e) => setRentalRatePeriod(e.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                >
+                  <option value="">Select period...</option>
+                  <option value="hourly">Per Hour</option>
+                  <option value="daily">Per Day</option>
+                  <option value="weekly">Per Week</option>
+                  <option value="monthly">Per Month</option>
+                </select>
+                <p className="mt-2 text-xs text-slate-500">
+                  Note: The price above will be interpreted as the rate per {rentalRatePeriod || "[period]"}
+                </p>
+                <input type="hidden" name="rentalRatePeriod" value={rentalRatePeriod} />
+              </div>
+            )}
           </div>
         </div>
       )}

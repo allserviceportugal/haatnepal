@@ -136,6 +136,13 @@ export type Listing = {
   storage_instructions: string | null;
   allergen_info: string | null;
   is_food: boolean;
+  is_agriculture: boolean;
+  harvest_date: string | null;
+  unit_of_sale: string | null;
+  min_order_quantity: number | null;
+  farm_location: string | null;
+  for_rent: boolean;
+  rental_rate_period: string | null;
   created_at: string;
   updated_at: string;
   expires_at: string;
@@ -180,6 +187,12 @@ export type DraftListing = {
   ingredients: string | null;
   storage_instructions: string | null;
   allergen_info: string | null;
+  harvest_date: string | null;
+  unit_of_sale: string | null;
+  min_order_quantity: number | null;
+  farm_location: string | null;
+  for_rent: boolean;
+  rental_rate_period: string | null;
   category_path: Record<string, string> | null;
   attribute_values: Record<string, string>;
   courier_ids: string[] | null;
