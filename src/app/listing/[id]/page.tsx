@@ -7,6 +7,7 @@ import { FavoriteButton } from "@/components/favorite-button";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { FeatureListingButton } from "@/components/feature-listing-button";
 import { ReportIssueButton } from "@/components/report-issue-button";
+import { ShareListingButton } from "@/components/share-listing-button";
 import { deleteListingAction, markListingSoldAction } from "@/lib/actions/listings";
 import { startConversationAction } from "@/lib/actions/conversations";
 import { withdrawJobApplicationAction } from "@/lib/actions/job-applications";
@@ -474,7 +475,12 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                   </button>
                 </form>
               )}
-              <div className="mt-4 border-t border-slate-200 pt-4">
+              <div className="mt-4 border-t border-slate-200 pt-4 flex gap-4">
+                <ShareListingButton
+                  listingId={listing.id}
+                  listingTitle={listing.title}
+                  listingImage={images[0]?.url}
+                />
                 <ReportIssueButton
                   listingId={listing.id}
                   listingTitle={listing.title}
