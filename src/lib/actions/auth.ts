@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { signUpSchema, verifyCodeSchema, signInSchema } from "@/lib/validations/auth";
+import { createOtpCode, verifyOtpCode } from "@/lib/utils/otp";
+import { sendOtpEmail, sendWelcomeEmail } from "@/lib/services/email";
 
 export type AuthActionState = {
   error?: string;
@@ -17,7 +19,7 @@ const NOT_CONFIGURED_ERROR =
   "Supabase isn't configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local.";
 
 /**
- * SIGNUP: Send OTP code to email
+ * SIGNUP: Generate and send 6-digit OTP to email
  * Email + Name + Phone + Account Type
  */
 export async function signUpAction(
@@ -43,23 +45,28 @@ export async function signUpAction(
   }
 
   const { displayName, email, phone, accountType } = parsed.data;
-  const supabase = await createClient();
 
-  // Send OTP code to email
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`,
-      data: {
-        display_name: displayName,
-        phone,
-        account_type: accountType,
-      },
-    },
+  // Generate and store 6-digit OTP code
+  const { code, error: otpError } = await createOtpCode(email, {
+    display_name: displayName,
+    phone,
+    account_type: accountType as "individual" | "business",
   });
 
-  if (error) {
-    return { error: error.message, step: 'email' };
+  if (otpError || !code) {
+    return {
+      error: "Failed to generate verification code. Please try again.",
+      step: 'email',
+    };
+  }
+
+  // Send OTP email with haatnepal branding
+  const emailSent = await sendOtpEmail(email, code);
+  if (!emailSent) {
+    return {
+      error: "Failed to send verification email. Please try again.",
+      step: 'email',
+    };
   }
 
   return {
@@ -70,7 +77,7 @@ export async function signUpAction(
 }
 
 /**
- * VERIFY CODE: User enters OTP from email
+ * VERIFY CODE: User enters 6-digit code from email
  */
 export async function verifyCodeAction(
   _prevState: AuthActionState,
@@ -95,78 +102,91 @@ export async function verifyCodeAction(
   }
 
   const { email, code } = parsed.data;
-  const supabase = await createClient();
 
-  // Verify OTP
-  const { data, error } = await supabase.auth.verifyOtp({
+  // Verify the OTP code
+  const { valid, metadata, error } = await verifyOtpCode(email, code);
+
+  if (!valid) {
+    return {
+      error: error || "Invalid or expired code. Request a new one.",
+      step: 'verify',
+      email,
+    };
+  }
+
+  if (!metadata) {
+    return {
+      error: "Verification failed. Please try again.",
+      step: 'verify',
+      email,
+    };
+  }
+
+  // Create Supabase user
+  const supabase = await createClient();
+  const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
-    token: code,
-    type: 'email',
+    password: Math.random().toString(36).slice(-20), // Random password (user will use OTP to login)
+    options: {
+      data: {
+        display_name: metadata.display_name,
+        phone: metadata.phone,
+        account_type: metadata.account_type,
+      },
+    },
   });
 
-  if (error || !data.user) {
+  if (authError || !authData.user) {
+    console.error("Error creating auth user:", authError);
     return {
-      error: "Invalid or expired code. Request a new one.",
+      error: "Failed to create account. Please try again.",
       step: 'verify',
       email,
     };
   }
 
-  // Profile should already be auto-created by the database trigger when the auth user was created.
-  // Just verify it exists, and update email if needed (email is provided at verification time).
-  const { data: existingProfile, error: fetchError } = await supabase
+  // Get or create profile
+  const { data: existingProfile } = await supabase
     .from("profiles")
     .select("id")
-    .eq("id", data.user.id)
+    .eq("id", authData.user.id)
     .single();
 
-  if (fetchError && fetchError.code !== "PGRST116") {
-    // PGRST116 = "no rows" error, which is expected if profile doesn't exist
-    console.error("Error fetching profile:", fetchError);
-    return {
-      error: "Failed to set up your account. Please try again.",
-      step: 'verify',
-      email,
-    };
-  }
-
-  // If profile doesn't exist (shouldn't happen with trigger, but handle it), create it
   if (!existingProfile) {
-    const displayName = data.user.user_metadata?.display_name || email.split("@")[0];
-    const phone = data.user.user_metadata?.phone || "";
-    const accountType = data.user.user_metadata?.account_type || "individual";
-
     const { error: profileError } = await supabase.from("profiles").insert({
-      id: data.user.id,
-      display_name: displayName,
+      id: authData.user.id,
+      display_name: metadata.display_name,
       email,
-      phone,
-      account_type: accountType,
+      phone: metadata.phone,
+      account_type: metadata.account_type,
       phone_verified: false,
     });
 
     if (profileError) {
       console.error("Error creating profile:", profileError);
       return {
-        error: "Failed to create your account. Please try again or contact support.",
+        error: "Account created but profile setup failed. Please contact support.",
         step: 'verify',
         email,
       };
     }
-  } else {
-    // Profile exists, just ensure email is set
-    await supabase
-      .from("profiles")
-      .update({ email })
-      .eq("id", data.user.id);
   }
+
+  // Send welcome email
+  await sendWelcomeEmail(email, metadata.display_name);
+
+  // Sign in the user
+  await supabase.auth.signInWithPassword({
+    email,
+    password: authData.user.user_metadata?.password || "",
+  });
 
   const nextPath = formData.get("next");
   redirect(typeof nextPath === "string" && nextPath.startsWith("/") ? nextPath : "/");
 }
 
 /**
- * LOGIN: Send OTP code to email (reuse signup for existing users)
+ * LOGIN: Send OTP code to existing user
  */
 export async function signInAction(
   _prevState: AuthActionState,
@@ -185,23 +205,49 @@ export async function signInAction(
   }
 
   const supabase = await createClient();
+  const { email } = parsed.data;
 
-  // Send OTP code
-  const { error } = await supabase.auth.signInWithOtp({
-    email: parsed.data.email,
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`,
-    },
+  // Check if user exists
+  const { data: user } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("email", email)
+    .single();
+
+  if (!user) {
+    return {
+      error: "No account found with this email. Please sign up first.",
+      step: 'email',
+    };
+  }
+
+  // Generate and send OTP code for login
+  const { code, error: otpError } = await createOtpCode(email, {
+    display_name: "",
+    phone: "",
+    account_type: "individual",
   });
 
-  if (error) {
-    return { error: error.message, step: 'email' };
+  if (otpError || !code) {
+    return {
+      error: "Failed to generate verification code. Please try again.",
+      step: 'email',
+    };
+  }
+
+  // Send OTP email
+  const emailSent = await sendOtpEmail(email, code);
+  if (!emailSent) {
+    return {
+      error: "Failed to send verification email. Please try again.",
+      step: 'email',
+    };
   }
 
   return {
     codeSent: true,
     step: 'verify',
-    email: parsed.data.email,
+    email,
   };
 }
 
@@ -219,17 +265,21 @@ export async function resendCodeAction(
   const email = formData.get("email") as string;
   if (!email) return { error: "Email required" };
 
-  const supabase = await createClient();
-
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`,
-    },
+  // Generate new OTP code
+  const { code, error: otpError } = await createOtpCode(email, {
+    display_name: "",
+    phone: "",
+    account_type: "individual",
   });
 
-  if (error) {
-    return { error: error.message, email };
+  if (otpError || !code) {
+    return { error: "Failed to generate verification code", email };
+  }
+
+  // Send OTP email
+  const emailSent = await sendOtpEmail(email, code);
+  if (!emailSent) {
+    return { error: "Failed to send verification email", email };
   }
 
   return { codeSent: true, email };
