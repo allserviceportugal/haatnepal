@@ -4,6 +4,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { getListings, getFeaturedListings, getPopularListings, getTopSellingListings, getTopRatedSellers } from "@/lib/queries/listings";
 import { ListingCard } from "@/components/listing-card";
 import { SellerCard } from "@/components/seller-card";
+import { PremiumAdsCarousel } from "@/components/premium-ads-carousel";
 import type { Category } from "@/lib/supabase/types";
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -110,13 +111,8 @@ export default async function Home() {
             Start selling
           </Link>
         </div>
-        <div className="relative hidden min-h-[220px] sm:block">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=1200&q=80"
-            alt=""
-            className="h-full w-full object-cover"
-          />
+        <div className="relative min-h-[220px]">
+          <PremiumAdsCarousel />
         </div>
       </section>
 
