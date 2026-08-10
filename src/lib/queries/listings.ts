@@ -289,3 +289,131 @@ export async function getFavoriteCounts(
 
   return counts;
 }
+
+export async function getFeaturedListings(
+  supabase: SupabaseClient,
+  limit: number = 12
+): Promise<ListingWithRelations[]> {
+  const { data, error } = await supabase
+    .from("listings")
+    .select(LISTING_SELECT)
+    .eq("status", "active")
+    .not("featured_until", "is", null)
+    .gt("featured_until", new Date().toISOString())
+    .order("featured_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("getFeaturedListings error:", error.message);
+    return [];
+  }
+
+  const listings = (data ?? []) as unknown as ListingWithRelations[];
+  const listingIds = listings.map((l) => l.id);
+  const favoriteCounts = await getFavoriteCounts(supabase, listingIds);
+
+  listings.forEach((listing) => {
+    (listing as any).favorite_count = favoriteCounts[listing.id] ?? 0;
+  });
+
+  return listings;
+}
+
+export async function getPopularListings(
+  supabase: SupabaseClient,
+  limit: number = 12
+): Promise<ListingWithRelations[]> {
+  const { data, error } = await supabase
+    .from("listings")
+    .select(LISTING_SELECT)
+    .eq("status", "active")
+    .gt("view_count", 0)
+    .order("view_count", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("getPopularListings error:", error.message);
+    return [];
+  }
+
+  const listings = (data ?? []) as unknown as ListingWithRelations[];
+  const listingIds = listings.map((l) => l.id);
+  const favoriteCounts = await getFavoriteCounts(supabase, listingIds);
+
+  listings.forEach((listing) => {
+    (listing as any).favorite_count = favoriteCounts[listing.id] ?? 0;
+  });
+
+  return listings;
+}
+
+export async function getTopSellingListings(
+  supabase: SupabaseClient,
+  limit: number = 12
+): Promise<ListingWithRelations[]> {
+  // Get top selling listings by counting order items per listing
+  const { data: soldListings, error } = await supabase
+    .from("order_items")
+    .select("listing_id")
+    .not("listing_id", "is", null);
+
+  if (error) {
+    console.error("getTopSellingListings error:", error.message);
+    return [];
+  }
+
+  // Count sales per listing
+  const salesMap = new Map<string, number>();
+  (soldListings ?? []).forEach((item: any) => {
+    const count = salesMap.get(item.listing_id) ?? 0;
+    salesMap.set(item.listing_id, count + 1);
+  });
+
+  // Sort by sales count and get top listing IDs
+  const topListingIds = Array.from(salesMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([id]) => id);
+
+  if (topListingIds.length === 0) return [];
+
+  const { data, error: listingError } = await supabase
+    .from("listings")
+    .select(LISTING_SELECT)
+    .in("id", topListingIds)
+    .eq("status", "active");
+
+  if (listingError) {
+    console.error("getTopSellingListings - fetch listings error:", listingError.message);
+    return [];
+  }
+
+  const listings = (data ?? []) as unknown as ListingWithRelations[];
+  const favoriteCounts = await getFavoriteCounts(supabase, topListingIds);
+
+  listings.forEach((listing) => {
+    (listing as any).favorite_count = favoriteCounts[listing.id] ?? 0;
+  });
+
+  // Return in sales order
+  return listings.sort((a, b) => (salesMap.get(b.id) ?? 0) - (salesMap.get(a.id) ?? 0));
+}
+
+export async function getTopRatedSellers(
+  supabase: SupabaseClient,
+  limit: number = 6
+): Promise<any[]> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, display_name, avatar_url, district, rating_avg, rating_count, account_type")
+    .gt("rating_count", 0)
+    .order("rating_avg", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("getTopRatedSellers error:", error.message);
+    return [];
+  }
+
+  return data ?? [];
+}

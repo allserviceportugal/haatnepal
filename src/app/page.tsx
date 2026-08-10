@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
-import { getListings } from "@/lib/queries/listings";
+import { getListings, getFeaturedListings, getPopularListings, getTopSellingListings, getTopRatedSellers } from "@/lib/queries/listings";
 import { ListingCard } from "@/components/listing-card";
+import { SellerCard } from "@/components/seller-card";
 import type { Category } from "@/lib/supabase/types";
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -46,16 +47,28 @@ const stats = [
 export default async function Home() {
   const configured = isSupabaseConfigured();
   let categories: Category[] = [];
-  let listings: Awaited<ReturnType<typeof getListings>> = [];
+  let recentListings: Awaited<ReturnType<typeof getListings>> = [];
+  let featuredListings: Awaited<ReturnType<typeof getFeaturedListings>> = [];
+  let popularListings: Awaited<ReturnType<typeof getPopularListings>> = [];
+  let topSellingListings: Awaited<ReturnType<typeof getTopSellingListings>> = [];
+  let topSellers: Awaited<ReturnType<typeof getTopRatedSellers>> = [];
 
   if (configured) {
     const supabase = await createClient();
-    const [{ data: categoryRows }, listingRows] = await Promise.all([
+    const [{ data: categoryRows }, recent, featured, popular, topSelling, sellers] = await Promise.all([
       supabase.from("categories").select("*").is("parent_id", null).order("name"),
-      getListings(supabase, { sort: "newest", limit: 16 }),
+      getListings(supabase, { sort: "newest", limit: 12 }),
+      getFeaturedListings(supabase, 12),
+      getPopularListings(supabase, 12),
+      getTopSellingListings(supabase, 12),
+      getTopRatedSellers(supabase, 6),
     ]);
     categories = categoryRows ?? [];
-    listings = listingRows;
+    recentListings = recent;
+    featuredListings = featured;
+    popularListings = popular;
+    topSellingListings = topSelling;
+    topSellers = sellers;
   }
 
   const displayCategories =
@@ -135,19 +148,83 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Featured Listings */}
+      {featuredListings.length > 0 && (
+        <section className="mt-8">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <h2 className="text-lg font-black text-slate-900">
+              ⭐ Featured listings
+            </h2>
+            <Link href="/search?featured=true" className="text-sm font-semibold text-orange-600 hover:text-orange-700">
+              See all
+            </Link>
+          </div>
+          <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2">
+            {featuredListings.map((listing) => (
+              <div key={listing.id} className="w-40 shrink-0 sm:w-48">
+                <ListingCard listing={listing} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Popular Listings */}
+      {popularListings.length > 0 && (
+        <section className="mt-8">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <h2 className="text-lg font-black text-slate-900">
+              🔥 Popular now
+            </h2>
+            <Link href="/search?sort=popular" className="text-sm font-semibold text-orange-600 hover:text-orange-700">
+              See all
+            </Link>
+          </div>
+          <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2">
+            {popularListings.map((listing) => (
+              <div key={listing.id} className="w-40 shrink-0 sm:w-48">
+                <ListingCard listing={listing} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Top Selling */}
+      {topSellingListings.length > 0 && (
+        <section className="mt-8">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <h2 className="text-lg font-black text-slate-900">
+              📦 Top selling
+            </h2>
+            <Link href="/search?sort=sales" className="text-sm font-semibold text-orange-600 hover:text-orange-700">
+              See all
+            </Link>
+          </div>
+          <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2">
+            {topSellingListings.map((listing) => (
+              <div key={listing.id} className="w-40 shrink-0 sm:w-48">
+                <ListingCard listing={listing} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Fresh Listings */}
       <section className="mt-8">
         <div className="mb-3 flex items-center justify-between gap-4">
           <h2 className="text-lg font-black text-slate-900">
-            {configured ? "Fresh listings" : "Example listings"}
+            {configured ? "✨ Latest listings" : "Example listings"}
           </h2>
           <Link href="/search" className="text-sm font-semibold text-orange-600 hover:text-orange-700">
             See all
           </Link>
         </div>
 
-        {listings.length > 0 ? (
+        {recentListings.length > 0 ? (
           <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2">
-            {listings.map((listing) => (
+            {recentListings.map((listing) => (
               <div key={listing.id} className="w-40 shrink-0 sm:w-48">
                 <ListingCard listing={listing} />
               </div>
@@ -161,6 +238,34 @@ export default async function Home() {
           </p>
         )}
       </section>
+
+      {/* Top Sellers */}
+      {topSellers.length > 0 && (
+        <section className="mt-8">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <h2 className="text-lg font-black text-slate-900">
+              👥 Top-rated sellers
+            </h2>
+            <Link href="/search?sellerType=business" className="text-sm font-semibold text-orange-600 hover:text-orange-700">
+              See all sellers
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {topSellers.map((seller) => (
+              <SellerCard
+                key={seller.id}
+                id={seller.id}
+                displayName={seller.display_name}
+                avatarUrl={seller.avatar_url}
+                district={seller.district}
+                ratingAvg={seller.rating_avg}
+                ratingCount={seller.rating_count}
+                accountType={seller.account_type}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="mt-10 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="rounded-md bg-slate-900 p-8 text-white">
