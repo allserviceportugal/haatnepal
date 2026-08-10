@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-export type CartItem = {
+export interface CartItem {
   listingId: string;
   title: string;
   price: number;
@@ -11,32 +11,53 @@ export type CartItem = {
   sellerId: string;
   sellerName: string;
   district: string;
-};
+  quantity: number;
+  deliveryMethod?: string;
+}
+
+interface CartState {
+  items: CartItem[];
+  subtotal: number;
+  shipping: number;
+  total: number;
+}
 
 type CartContextValue = {
-  items: CartItem[];
+  state: CartState;
   addItem: (item: CartItem) => void;
-  removeItem: (listingId: string) => void;
-  clear: () => void;
+  updateQuantity: (listingId: string, quantity: number) => void;
+  removeFromCart: (listingId: string) => void;
+  clearCart: () => void;
   count: number;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
 const STORAGE_KEY = "mn_cart";
 
+function calculateTotals(items: CartItem[]) {
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const shipping = subtotal > 5000 ? 0 : 100; // Free shipping above NPR 5000
+  const total = subtotal + shipping;
+  return { subtotal, shipping, total };
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [state, setState] = useState<CartState>({
+    items: [],
+    subtotal: 0,
+    shipping: 0,
+    total: 0,
+  });
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    // localStorage isn't available during SSR, so the cart can only be read
-    // after mount — this is the one legitimate case for a synchronous
-    // setState here (syncing React state from a browser-only external
-    // store), not a value derivable during render.
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (raw) setItems(JSON.parse(raw));
+      if (raw) {
+        const items = JSON.parse(raw);
+        const totals = calculateTotals(items);
+        setState({ items, ...totals });
+      }
     } catch {
       // ignore corrupt storage
     }
@@ -45,25 +66,62 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [items, hydrated]);
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items));
+  }, [state.items, hydrated]);
 
   function addItem(item: CartItem) {
-    setItems((prev) =>
-      prev.some((existing) => existing.listingId === item.listingId) ? prev : [...prev, item]
-    );
+    setState((prev) => {
+      const existing = prev.items.find((i) => i.listingId === item.listingId);
+      let newItems;
+
+      if (existing) {
+        newItems = prev.items.map((i) =>
+          i.listingId === item.listingId
+            ? { ...i, quantity: i.quantity + (item.quantity || 1) }
+            : i
+        );
+      } else {
+        newItems = [...prev.items, { ...item, quantity: item.quantity || 1 }];
+      }
+
+      const totals = calculateTotals(newItems);
+      return { items: newItems, ...totals };
+    });
   }
 
-  function removeItem(listingId: string) {
-    setItems((prev) => prev.filter((existing) => existing.listingId !== listingId));
+  function updateQuantity(listingId: string, quantity: number) {
+    setState((prev) => {
+      const newItems = prev.items.map((i) =>
+        i.listingId === listingId ? { ...i, quantity: Math.max(1, quantity) } : i
+      );
+      const totals = calculateTotals(newItems);
+      return { items: newItems, ...totals };
+    });
   }
 
-  function clear() {
-    setItems([]);
+  function removeFromCart(listingId: string) {
+    setState((prev) => {
+      const newItems = prev.items.filter((i) => i.listingId !== listingId);
+      const totals = calculateTotals(newItems);
+      return { items: newItems, ...totals };
+    });
+  }
+
+  function clearCart() {
+    setState({ items: [], subtotal: 0, shipping: 0, total: 0 });
   }
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, clear, count: items.length }}>
+    <CartContext.Provider
+      value={{
+        state,
+        addItem,
+        updateQuantity,
+        removeFromCart,
+        clearCart,
+        count: state.items.length,
+      }}
+    >
       {children}
     </CartContext.Provider>
   );

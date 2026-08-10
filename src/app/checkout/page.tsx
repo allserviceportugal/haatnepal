@@ -16,7 +16,7 @@ type SellerGroup = { sellerId: string; sellerName: string; items: CartItem[] };
 type DeliveryChoice = { courierId: string | null; pickup: boolean };
 
 export default function CheckoutPage() {
-  const { items, clear } = useCart();
+  const { state: cartState, clearCart } = useCart();
   const router = useRouter();
   const configured = isSupabaseConfigured();
 
@@ -26,7 +26,7 @@ export default function CheckoutPage() {
   const [couriers, setCouriers] = useState<DeliveryCourier[]>([]);
   const [deliveryChoices, setDeliveryChoices] = useState<Record<string, DeliveryChoice>>({});
 
-  const [state, formAction, isPending] = useActionState<CheckoutActionState, FormData>(
+  const [orderState, formAction, isPending] = useActionState<CheckoutActionState, FormData>(
     checkoutAction,
     {}
   );
@@ -48,15 +48,15 @@ export default function CheckoutPage() {
   }, [configured]);
 
   useEffect(() => {
-    if (state.success) {
-      clear();
+    if (orderState.success) {
+      clearCart();
       router.push("/dashboard/orders");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.success]);
+  }, [orderState.success]);
 
   const groups: SellerGroup[] = Object.values(
-    items.reduce<Record<string, SellerGroup>>((acc, item) => {
+    cartState.items.reduce<Record<string, SellerGroup>>((acc: Record<string, SellerGroup>, item: CartItem) => {
       if (!acc[item.sellerId]) {
         acc[item.sellerId] = { sellerId: item.sellerId, sellerName: item.sellerName, items: [] };
       }
@@ -73,7 +73,7 @@ export default function CheckoutPage() {
     );
   }
 
-  if (items.length === 0) {
+  if (cartState.items.length === 0) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
         <h1 className="text-2xl font-black text-slate-900">Your cart is empty</h1>
@@ -93,7 +93,7 @@ export default function CheckoutPage() {
         <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
           <h1 className="text-2xl font-black text-slate-900">Sign in to complete your order</h1>
           <p className="mt-2 text-sm text-slate-600">
-            Your cart ({items.length} item{items.length === 1 ? "" : "s"}) will be waiting.
+            Your cart ({cartState.items.length} item{cartState.items.length === 1 ? "" : "s"}) will be waiting.
           </p>
 
           <div className="mt-6 flex gap-1 rounded-full bg-slate-100 p-1 text-sm font-semibold">
@@ -125,7 +125,7 @@ export default function CheckoutPage() {
     );
   }
 
-  const cartPayload = JSON.stringify(items.map((item) => ({ listingId: item.listingId })));
+  const cartPayload = JSON.stringify(cartState.items.map((item) => ({ listingId: item.listingId })));
   const deliveryPayload = JSON.stringify(
     groups.map((group) => ({
       sellerId: group.sellerId,
@@ -142,9 +142,9 @@ export default function CheckoutPage() {
         <input type="hidden" name="cartPayload" value={cartPayload} />
         <input type="hidden" name="deliveryPayload" value={deliveryPayload} />
 
-        {state.error && (
+        {orderState.error && (
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {state.error}
+            {orderState.error}
           </div>
         )}
 

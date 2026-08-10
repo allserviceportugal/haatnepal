@@ -22,16 +22,16 @@ export function AddToCartButton({
   sellerName: string;
   district: string;
 }) {
-  const { items, addItem } = useCart();
+  const { state, addItem } = useCart();
   const router = useRouter();
-  const inCart = items.some((item) => item.listingId === listingId);
+  const inCart = state.items.some((item) => item.listingId === listingId);
 
   return (
     <button
       type="button"
       onClick={() => {
         if (!inCart) {
-          addItem({ listingId, title, price, currency, image, sellerId, sellerName, district });
+          addItem({ listingId, title, price, currency, image, sellerId, sellerName, district, quantity: 1 });
         }
         router.push("/cart");
       }}

@@ -5,7 +5,7 @@ const LISTING_SELECT = `
   *,
   listing_images(*),
   categories(id, name, slug, parent_id),
-  profiles!listings_seller_id_fkey(id, display_name, district, rating_avg, rating_count, account_type),
+  profiles!listings_seller_id_fkey(id, display_name, phone, email, district, rating_avg, rating_count, account_type),
   listing_attribute_values(*, category_attributes(*)),
   listing_delivery_options(courier:delivery_couriers(*))
 `;

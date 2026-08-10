@@ -312,7 +312,7 @@ export type ListingWithRelations = Listing & {
   categories: Pick<Category, "id" | "name" | "slug" | "parent_id"> | null;
   profiles: Pick<
     Profile,
-    "id" | "display_name" | "district" | "rating_avg" | "rating_count" | "account_type"
+    "id" | "display_name" | "phone" | "email" | "district" | "rating_avg" | "rating_count" | "account_type"
   > | null;
   listing_attribute_values: (ListingAttributeValue & { category_attributes: CategoryAttribute | null })[];
   listing_delivery_options: { courier: DeliveryCourier }[];

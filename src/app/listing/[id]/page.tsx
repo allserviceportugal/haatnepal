@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { getListingById, isDescendantOfSlug } from "@/lib/queries/listings";
+import { getListingTransactionConfig } from "@/lib/queries/transaction_config";
 import { FavoriteButton } from "@/components/favorite-button";
-import { AddToCartButton } from "@/components/add-to-cart-button";
+import { ListingCTASection } from "@/components/listing-cta-section";
 import { FeatureListingButton } from "@/components/feature-listing-button";
 import { ReportIssueButton } from "@/components/report-issue-button";
 import { ShareListingButton } from "@/components/share-listing-button";
@@ -37,6 +38,9 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     data: { user },
   } = await supabase.auth.getUser();
   const isOwner = user?.id === listing.seller_id;
+
+  // Get transaction config for this listing
+  const transactionConfig = await getListingTransactionConfig(supabase, id, user?.id);
 
   let canFeature = false;
   if (isOwner) {
@@ -355,17 +359,19 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               )}
             </div>
 
-            {!isOwner && !isJobsListing && listing.listing_type === "fixed_price" && listing.status === "active" && (
-              <div className="mt-3">
-                <AddToCartButton
+            {!isOwner && !isJobsListing && listing.status === "active" && transactionConfig && (
+              <div className="mt-6">
+                <ListingCTASection
                   listingId={listing.id}
-                  title={listing.title}
-                  price={listing.price}
-                  currency={listing.currency}
-                  image={images[0]?.url ?? null}
                   sellerId={listing.seller_id}
+                  sellerPhone={listing.profiles?.phone ?? undefined}
+                  sellerEmail={listing.profiles?.email ?? undefined}
                   sellerName={listing.profiles?.display_name ?? "Seller"}
-                  district={listing.district}
+                  listingTitle={listing.title}
+                  listingPrice={listing.price}
+                  listingImage={images[0]?.url ?? null}
+                  config={transactionConfig}
+                  currentUserId={user?.id}
                 />
               </div>
             )}
