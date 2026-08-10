@@ -130,7 +130,6 @@ export async function verifyCodeAction(
       email,
       phone,
       account_type: accountType,
-      is_business: accountType === "business",
       phone_verified: false,
     });
 
