@@ -112,13 +112,25 @@ export async function verifyCodeAction(
     };
   }
 
-  // User authenticated! Create profile if doesn't exist
-  const { data: existingProfile } = await supabase
+  // Profile should already be auto-created by the database trigger when the auth user was created.
+  // Just verify it exists, and update email if needed (email is provided at verification time).
+  const { data: existingProfile, error: fetchError } = await supabase
     .from("profiles")
     .select("id")
     .eq("id", data.user.id)
     .single();
 
+  if (fetchError && fetchError.code !== "PGRST116") {
+    // PGRST116 = "no rows" error, which is expected if profile doesn't exist
+    console.error("Error fetching profile:", fetchError);
+    return {
+      error: "Failed to set up your account. Please try again.",
+      step: 'verify',
+      email,
+    };
+  }
+
+  // If profile doesn't exist (shouldn't happen with trigger, but handle it), create it
   if (!existingProfile) {
     const displayName = data.user.user_metadata?.display_name || email.split("@")[0];
     const phone = data.user.user_metadata?.phone || "";
@@ -136,11 +148,17 @@ export async function verifyCodeAction(
     if (profileError) {
       console.error("Error creating profile:", profileError);
       return {
-        error: "Account created but profile setup failed. Please contact support.",
+        error: "Failed to create your account. Please try again or contact support.",
         step: 'verify',
         email,
       };
     }
+  } else {
+    // Profile exists, just ensure email is set
+    await supabase
+      .from("profiles")
+      .update({ email })
+      .eq("id", data.user.id);
   }
 
   const nextPath = formData.get("next");
