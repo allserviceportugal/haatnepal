@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 
 interface PremiumAd {
   id: string;
@@ -86,30 +85,29 @@ export function PremiumAdsCarousel() {
     setIsAutoPlay(false);
   };
 
-  const currentAd = SAMPLE_ADS[currentIndex];
-
   return (
     <div
-      className="relative h-full min-h-[220px] overflow-hidden rounded-lg"
+      className="relative w-full h-full min-h-[220px] sm:min-h-[300px] overflow-hidden rounded-lg bg-slate-200"
       onMouseEnter={() => setIsAutoPlay(false)}
       onMouseLeave={() => setIsAutoPlay(true)}
     >
-      {/* Slides */}
-      <div className="relative h-full w-full">
+      {/* Slides Container */}
+      <div className="relative w-full h-full">
         {SAMPLE_ADS.map((ad, index) => (
           <Link
             key={ad.id}
             href={ad.link}
-            className={`absolute inset-0 transition-opacity duration-500 ${
-              index === currentIndex ? "opacity-100" : "opacity-0"
+            className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ease-in-out ${
+              index === currentIndex ? "opacity-100 z-10" : "opacity-0 z-0"
             }`}
           >
-            <div className="relative h-full w-full">
+            <div className="relative w-full h-full">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={ad.image}
                 alt={ad.title}
-                className="h-full w-full object-cover"
+                className="w-full h-full object-cover"
+                loading={index === currentIndex ? "eager" : "lazy"}
               />
               {/* Overlay with gradient */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0" />

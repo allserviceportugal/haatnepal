@@ -93,7 +93,7 @@ export default async function Home() {
         </div>
       )}
 
-      <section className="grid overflow-hidden rounded-md bg-gradient-to-r from-orange-600 to-orange-500 text-white sm:grid-cols-2">
+      <section className="grid gap-0 overflow-hidden rounded-md bg-gradient-to-r from-orange-600 to-orange-500 text-white sm:grid-cols-2 sm:min-h-[300px]">
         <div className="flex flex-col justify-center gap-4 px-6 py-10 sm:px-10">
           <span className="inline-flex w-fit items-center rounded bg-white/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide">
             Nepal&apos;s marketplace
@@ -111,7 +111,7 @@ export default async function Home() {
             Start selling
           </Link>
         </div>
-        <div className="relative min-h-[220px]">
+        <div className="relative w-full min-h-[220px] sm:min-h-full">
           <PremiumAdsCarousel />
         </div>
       </section>
