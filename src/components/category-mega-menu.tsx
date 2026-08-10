@@ -15,7 +15,12 @@ export function CategoryMegaMenu({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(topLevelCategories[0]?.id ?? null);
+  const [hoverCategoryId, setHoverCategoryId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Categories to show subcategories on hover
+  const hoverCategories = ["vehicles", "real-estate", "electronics"];
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -45,15 +50,55 @@ export function CategoryMegaMenu({
           </svg>
         </button>
 
-        {quickLinks.map((category) => (
-          <Link
-            key={category.id}
-            href={`/c/${category.slug}`}
-            className="shrink-0 whitespace-nowrap transition hover:text-orange-600"
-          >
-            {category.name}
-          </Link>
-        ))}
+        {quickLinks.map((category) => {
+          const hasHoverSubcategories = hoverCategories.includes(category.slug);
+          const subcategories = childrenByParent[category.id] ?? [];
+
+          return (
+            <div
+              key={category.id}
+              className="relative shrink-0"
+              onMouseEnter={() => {
+                if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+                if (hasHoverSubcategories) {
+                  setHoverCategoryId(category.id);
+                }
+              }}
+              onMouseLeave={() => {
+                hoverTimerRef.current = setTimeout(() => {
+                  setHoverCategoryId(null);
+                }, 150);
+              }}
+            >
+              <Link
+                href={`/c/${category.slug}`}
+                className="whitespace-nowrap transition hover:text-orange-600"
+              >
+                {category.name}
+              </Link>
+
+              {hasHoverSubcategories && hoverCategoryId === category.id && subcategories.length > 0 && (
+                <div className="absolute left-0 top-full z-40 mt-0 min-w-max rounded-md border border-slate-200 bg-white shadow-lg">
+                  <div className="max-h-96 overflow-y-auto p-3">
+                    <ul className="space-y-2">
+                      {subcategories.map((sub) => (
+                        <li key={sub.id}>
+                          <Link
+                            href={`/c/${sub.slug}`}
+                            onClick={() => setHoverCategoryId(null)}
+                            className="block rounded px-3 py-1.5 text-sm text-slate-700 transition hover:bg-orange-50 hover:text-orange-600"
+                          >
+                            {sub.name}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {isOpen && (
