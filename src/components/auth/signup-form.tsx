@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import Link from "next/link";
 import { signUpAction, verifyCodeAction, resendCodeAction } from "@/lib/actions/auth";
 
@@ -179,21 +179,23 @@ function VerifyCodeForm({ email, next }: { email: string; next?: string }) {
 }
 
 function ResendCodeButton({ email }: { email: string }) {
-  const [, formAction, isPending] = useActionState(resendCodeAction, {});
+  const [isPending, startTransition] = useTransition();
   const [cooldown, setCooldown] = useState(0);
 
   const handleResend = () => {
-    const fd = new FormData();
-    fd.set("email", email);
-    formAction(fd);
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("email", email);
+      await resendCodeAction({}, fd);
 
-    setCooldown(30);
-    const timer = setInterval(() => {
-      setCooldown((c) => {
-        if (c <= 1) clearInterval(timer);
-        return c - 1;
-      });
-    }, 1000);
+      setCooldown(30);
+      const timer = setInterval(() => {
+        setCooldown((c) => {
+          if (c <= 1) clearInterval(timer);
+          return c - 1;
+        });
+      }, 1000);
+    });
   };
 
   return (
