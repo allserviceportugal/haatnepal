@@ -41,9 +41,9 @@ export async function createOtpCode(
 }
 
 /**
- * Verify an OTP code and return the metadata if valid
+ * Check if an OTP code is valid (without marking as verified)
  */
-export async function verifyOtpCode(
+export async function checkOtpCode(
   email: string,
   code: string
 ): Promise<{
@@ -76,25 +76,49 @@ export async function verifyOtpCode(
       return { valid: false, error: "Too many attempts. Request a new code." };
     }
 
-    // Mark as verified
-    const { error: updateError } = await supabase
-      .from("otp_codes")
-      .update({ verified_at: new Date().toISOString() })
-      .eq("email", email)
-      .eq("code", code);
-
-    if (updateError) {
-      return { valid: false, error: "Failed to verify code" };
-    }
-
     return {
       valid: true,
       metadata: data.metadata,
     };
   } catch (err) {
-    console.error("Exception verifying OTP code:", err);
+    console.error("Exception checking OTP code:", err);
     return { valid: false, error: "An error occurred" };
   }
+}
+
+/**
+ * Mark an OTP code as verified (after successful account creation)
+ */
+export async function markOtpCodeVerified(email: string, code: string): Promise<boolean> {
+  try {
+    const supabase = await createClient();
+
+    const { error } = await supabase
+      .from("otp_codes")
+      .update({ verified_at: new Date().toISOString() })
+      .eq("email", email)
+      .eq("code", code);
+
+    return !error;
+  } catch (err) {
+    console.error("Exception marking OTP as verified:", err);
+    return false;
+  }
+}
+
+/**
+ * Verify an OTP code and return the metadata if valid
+ * @deprecated Use checkOtpCode and markOtpCodeVerified instead
+ */
+export async function verifyOtpCode(
+  email: string,
+  code: string
+): Promise<{
+  valid: boolean;
+  metadata?: { display_name: string; phone: string; account_type: string };
+  error?: string;
+}> {
+  return checkOtpCode(email, code);
 }
 
 /**

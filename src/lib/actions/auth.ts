@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { signUpSchema, verifyCodeSchema, signInSchema } from "@/lib/validations/auth";
-import { createOtpCode, verifyOtpCode } from "@/lib/utils/otp";
+import { createOtpCode, checkOtpCode, markOtpCodeVerified } from "@/lib/utils/otp";
 import { sendOtpEmail, sendWelcomeEmail } from "@/lib/services/email";
 
 export type AuthActionState = {
@@ -103,8 +103,8 @@ export async function verifyCodeAction(
 
   const { email, code } = parsed.data;
 
-  // Verify the OTP code
-  const { valid, metadata, error } = await verifyOtpCode(email, code);
+  // Check if the OTP code is valid (don't mark as verified yet)
+  const { valid, metadata, error } = await checkOtpCode(email, code);
 
   if (!valid) {
     return {
@@ -171,6 +171,9 @@ export async function verifyCodeAction(
       };
     }
   }
+
+  // NOW mark the OTP code as verified (after everything succeeded)
+  await markOtpCodeVerified(email, code);
 
   // Send welcome email
   await sendWelcomeEmail(email, metadata.display_name);
