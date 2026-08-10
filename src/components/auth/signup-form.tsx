@@ -179,10 +179,14 @@ function VerifyCodeForm({ email, next }: { email: string; next?: string }) {
 }
 
 function ResendCodeButton({ email }: { email: string }) {
-  const [state, formAction, isPending] = useActionState(resendCodeAction, {});
+  const [, formAction, isPending] = useActionState(resendCodeAction, {});
   const [cooldown, setCooldown] = useState(0);
 
-  const handleResend = async () => {
+  const handleResend = () => {
+    const fd = new FormData();
+    fd.set("email", email);
+    formAction(fd);
+
     setCooldown(30);
     const timer = setInterval(() => {
       setCooldown((c) => {
@@ -193,20 +197,12 @@ function ResendCodeButton({ email }: { email: string }) {
   };
 
   return (
-    <form
-      action={async (fd) => {
-        await formAction(fd);
-        handleResend();
-      }}
+    <button
+      onClick={handleResend}
+      disabled={isPending || cooldown > 0}
+      className="text-center text-sm font-semibold text-orange-600 hover:text-orange-700 disabled:text-slate-400"
     >
-      <input type="hidden" name="email" value={email} />
-      <button
-        type="submit"
-        disabled={isPending || cooldown > 0}
-        className="text-center text-sm font-semibold text-orange-600 hover:text-orange-700 disabled:text-slate-400"
-      >
-        {cooldown > 0 ? `Resend in ${cooldown}s` : "Didn't receive code? Resend"}
-      </button>
-    </form>
+      {cooldown > 0 ? `Resend in ${cooldown}s` : "Didn't receive code? Resend"}
+    </button>
   );
 }
