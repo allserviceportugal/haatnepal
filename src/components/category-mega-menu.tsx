@@ -77,7 +77,7 @@ export function CategoryMegaMenu({
               ))}
             </div>
 
-            <div className="min-w-0 flex-1 overflow-x-auto p-5">
+            <div className="min-w-0 flex-1 overflow-x-auto overflow-y-auto max-h-[calc(100vh-200px)] p-5">
               {groups.length === 0 && flatItems.length === 0 ? (
                 <p className="text-sm text-slate-500">Browse this category from the sidebar link.</p>
               ) : (
