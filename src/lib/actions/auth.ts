@@ -132,12 +132,16 @@ export async function signUpAction(
   // Create or update profile with email_confirmed = true (auto-confirm)
   console.log("[SIGNUP] Creating/updating profile...");
   const adminClient = createAdminClient();
+
+  // Ensure account_type is valid enum value
+  const validAccountType = (accountType === 'business' ? 'business' : 'individual');
+
   const { error: profileError } = await adminClient.from("profiles").upsert({
     id: authData.user.id,
     display_name: displayName,
     email,
     phone,
-    account_type: accountType,
+    account_type: validAccountType,
     phone_verified: false,
     password_set: true,
     email_confirmed: true,
