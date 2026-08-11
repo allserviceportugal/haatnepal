@@ -1,12 +1,11 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 /**
  * Send OTP verification email with haatnepal branding
  */
 export async function sendOtpEmail(email: string, code: string): Promise<boolean> {
   try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
     const html = `
 <!DOCTYPE html>
 <html>
@@ -106,6 +105,7 @@ export async function sendOtpEmail(email: string, code: string): Promise<boolean
  */
 export async function sendWelcomeEmail(email: string, displayName: string): Promise<boolean> {
   try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
     const html = `
 <!DOCTYPE html>
 <html>
