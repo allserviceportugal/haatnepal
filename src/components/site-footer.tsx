@@ -81,6 +81,16 @@ export function SiteFooter() {
               <li><Link href="/advertise" className="text-slate-600 hover:text-orange-600">Advertise</Link></li>
             </ul>
           </div>
+
+          {/* Partners */}
+          <div>
+            <h3 className="font-bold uppercase tracking-wider text-slate-900">Partners</h3>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li><a href="https://cargosender.com" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-orange-600">CargoSender</a></li>
+              <li><a href="https://flightsinsight.com" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-orange-600">FlightsInsight</a></li>
+              <li><a href="https://voydly.com" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-orange-600">Voydly</a></li>
+            </ul>
+          </div>
         </div>
 
         {/* Divider */}
