@@ -10,6 +10,7 @@ import {
   loginSchema,
 } from "@/lib/validations/auth";
 import { sendConfirmationEmail } from "@/lib/services/email";
+import { isDisposableEmail } from "@/lib/utils/spam-protection";
 
 export type AuthActionState = {
   error?: string;
@@ -61,6 +62,16 @@ export async function signUpAction(
   }
 
   const { email, password } = parsed.data;
+
+  // Check for disposable email
+  if (isDisposableEmail(email)) {
+    return {
+      error: "Please use a real email address. Disposable emails are not allowed.",
+      step: 'email',
+      formValues: { displayName, email, phone, accountType },
+    };
+  }
+
   const supabase = await createClient();
 
   // Check if email or phone already exist
