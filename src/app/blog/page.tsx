@@ -1,9 +1,7 @@
-import Link from "next/link";
+"use client";
 
-export const metadata = {
-  title: "Blog - Haat Nepal",
-  description: "Latest news, articles, and insights for buyers and sellers on Nepal's marketplace.",
-};
+import Link from "next/link";
+import { useState } from "react";
 
 const categories = [
   { id: "consumer", name: "Consumer", icon: "🛍️", color: "blue" },
@@ -96,11 +94,6 @@ const articles = [
     featured: false,
   },
 ];
-
-"use client";
-
-import Link from "next/link";
-import { useState } from "react";
 
 export default function BlogPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
