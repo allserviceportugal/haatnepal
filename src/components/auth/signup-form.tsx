@@ -17,12 +17,12 @@ export function SignupForm({ next }: { next?: string }) {
       <div className="space-y-6 text-center">
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-6 py-8">
           <div className="mb-4 text-4xl">✓</div>
-          <h2 className="text-xl font-bold text-emerald-900">Account Created!</h2>
+          <h2 className="text-xl font-bold text-emerald-900">Welcome to Haat Nepal!</h2>
           <p className="mt-3 text-emerald-800">
-            We've sent a confirmation email to <strong className="break-all">{state.email}</strong>
+            Your account has been created successfully!
           </p>
           <p className="mt-2 text-sm text-emerald-700">
-            Click the link in the email to confirm your account, then you can log in.
+            A welcome email has been sent to <strong className="break-all">{state.email}</strong>
           </p>
         </div>
 

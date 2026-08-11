@@ -118,7 +118,7 @@ export async function signUpAction(
 
   console.log("[SIGNUP] Auth user created:", authData.user.id);
 
-  // Create or update profile with email_confirmed = false (using admin client to bypass RLS)
+  // Create or update profile with email_confirmed = true (auto-confirm)
   console.log("[SIGNUP] Creating/updating profile...");
   const adminClient = createAdminClient();
   const { error: profileError } = await adminClient.from("profiles").upsert({
@@ -129,7 +129,7 @@ export async function signUpAction(
     account_type: accountType,
     phone_verified: false,
     password_set: true,
-    email_confirmed: false,
+    email_confirmed: true,
   });
 
   if (profileError) {
@@ -141,29 +141,11 @@ export async function signUpAction(
     };
   }
 
-  console.log("[SIGNUP] Profile created, generating confirmation token...");
+  console.log("[SIGNUP] Profile created, sending welcome email...");
 
-  // Generate confirmation token (using admin client to bypass RLS)
-  const token = crypto.randomBytes(32).toString("hex");
-  const { error: tokenError } = await adminClient
-    .from("email_confirmation_tokens")
-    .insert({
-      user_id: authData.user.id,
-      token,
-      email,
-    });
-
-  if (tokenError) {
-    console.error("[SIGNUP] Token creation failed:", tokenError?.message);
-    return {
-      error: "Failed to create confirmation token",
-      step: 'email',
-    };
-  }
-
-  // Send confirmation email via Resend
-  console.log("[SIGNUP] Sending confirmation email...");
-  const emailResult = await sendConfirmationEmail(email, displayName, token);
+  // Send welcome email via Resend
+  console.log("[SIGNUP] Sending welcome email...");
+  const emailResult = await sendConfirmationEmail(email, displayName, "");
 
   if (!emailResult.success) {
     console.error("[SIGNUP] Email sending failed:", emailResult.error);
@@ -212,30 +194,7 @@ export async function loginAction(
   try {
     const supabase = await createClient({ rememberMe });
 
-    // Check if email is confirmed
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("email_confirmed")
-      .eq("email", email)
-      .single();
-
-    if (profileError || !profile) {
-      console.error("[LOGIN] Profile lookup failed:", profileError?.message);
-      return {
-        error: "Invalid email or password.",
-        step: 'email',
-      };
-    }
-
-    if (!profile.email_confirmed) {
-      console.log("[LOGIN] Email not confirmed for:", email);
-      return {
-        error: "Please confirm your email before logging in. Check your inbox for the confirmation link.",
-        step: 'email',
-      };
-    }
-
-    // Email is confirmed, proceed with login
+    // Sign in with email and password
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
