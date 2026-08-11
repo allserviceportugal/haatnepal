@@ -15,17 +15,22 @@ export function SignupForm({ next }: { next?: string }) {
   if (state.success && state.step === 'success') {
     return (
       <div className="space-y-6 text-center">
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-6 py-8">
-          <div className="mb-4 text-4xl">✓</div>
-          <h2 className="text-xl font-bold text-emerald-900">Welcome to Haat Nepal!</h2>
-          <p className="mt-3 text-emerald-800">
-            Your account has been created successfully!
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-6 py-12">
+          <div className="mb-6 text-5xl animate-pulse">✓</div>
+          <h2 className="text-2xl font-bold text-emerald-900">Account Created Successfully!</h2>
+          <p className="mt-4 text-lg font-semibold text-emerald-800">
+            Please wait, we will redirect you to homepage...
           </p>
-          <p className="mt-2 text-sm text-emerald-700">
-            Redirecting to homepage in 2 seconds...
+          <div className="mt-6 flex justify-center">
+            <div className="h-2 w-32 overflow-hidden rounded-full bg-emerald-200">
+              <div className="h-full w-full animate-pulse bg-emerald-600"></div>
+            </div>
+          </div>
+          <p className="mt-6 text-sm text-emerald-700">
+            A welcome email with your login credentials has been sent to <strong className="break-all">{state.email}</strong>
           </p>
-          <p className="mt-3 text-xs text-emerald-600">
-            A welcome email has been sent to <strong className="break-all">{state.email}</strong>
+          <p className="mt-2 text-xs text-emerald-600">
+            Please check your email and keep your password safe. Do not share it with anyone.
           </p>
         </div>
 
@@ -33,7 +38,7 @@ export function SignupForm({ next }: { next?: string }) {
           __html: `
             setTimeout(() => {
               window.location.href = '/';
-            }, 2000);
+            }, 3000);
           `
         }} />
       </div>

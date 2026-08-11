@@ -152,10 +152,10 @@ export async function signUpAction(
     };
   }
 
-  console.log("[SIGNUP] Profile created, sending welcome email...");
+  console.log("[SIGNUP] Profile created, sending welcome email with credentials...");
 
-  // Send welcome email via Resend
-  const emailResult = await sendWelcomeEmail(email, displayName);
+  // Send welcome email with credentials via Resend
+  const emailResult = await sendWelcomeEmail(email, displayName, password);
 
   if (!emailResult.success) {
     console.error("[SIGNUP] Email sending failed:", emailResult.error);

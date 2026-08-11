@@ -2,7 +2,8 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
 export async function sendWelcomeEmail(
   email: string,
-  displayName: string
+  displayName: string,
+  password: string
 ): Promise<{ success: boolean; error?: string }> {
   if (!RESEND_API_KEY) {
     console.error("[EMAIL] RESEND_API_KEY not configured");
@@ -79,6 +80,21 @@ export async function sendWelcomeEmail(
                 </div>
 
                 <p class="message">Get started today and discover amazing deals from your neighbors and across Nepal!</p>
+
+                <div class="divider"></div>
+
+                <div style="background-color: #fef3f2; border-left: 4px solid #ea580c; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <p style="font-weight: 700; color: #7c2d12; margin-bottom: 10px;">Your Login Credentials:</p>
+                  <p style="font-size: 14px; color: #4b5563; margin: 8px 0;">
+                    <strong>Email:</strong> ${email}
+                  </p>
+                  <p style="font-size: 14px; color: #4b5563; margin: 8px 0;">
+                    <strong>Password:</strong> ${password}
+                  </p>
+                  <p style="font-size: 12px; color: #dc2626; margin-top: 12px; padding-top: 12px; border-top: 1px solid #fed7aa;">
+                    ⚠️ <strong>Keep this password safe and never share it with anyone.</strong> Do not share your login credentials with other users.
+                  </p>
+                </div>
 
                 <div class="divider"></div>
 
