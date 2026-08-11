@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <style>
+    @media (prefers-color-scheme: dark) {
+      .favicon-bg { fill: #ea580c; }
+    }
+    @media (prefers-color-scheme: light) {
+      .favicon-bg { fill: #ea580c; }
+    }
+  </style>
+  <rect width="180" height="180" rx="36" class="favicon-bg"/>
+  <path d="M50 40 L50 140 M130 40 L130 140 M50 90 L130 90" stroke="white" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

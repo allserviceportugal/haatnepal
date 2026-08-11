@@ -53,6 +53,7 @@ export function CategoryMegaMenu({
         {quickLinks.map((category) => {
           const hasHoverSubcategories = hoverCategories.includes(category.slug);
           const subcategories = childrenByParent[category.id] ?? [];
+          const isHovered = hoverCategoryId === category.id;
 
           return (
             <div
@@ -67,26 +68,38 @@ export function CategoryMegaMenu({
               onMouseLeave={() => {
                 hoverTimerRef.current = setTimeout(() => {
                   setHoverCategoryId(null);
-                }, 150);
+                }, 200);
               }}
             >
               <Link
                 href={`/c/${category.slug}`}
-                className="whitespace-nowrap transition hover:text-orange-600"
+                className={`whitespace-nowrap transition ${
+                  isHovered ? "text-orange-600 font-medium" : "hover:text-orange-600"
+                }`}
               >
                 {category.name}
               </Link>
 
-              {hasHoverSubcategories && hoverCategoryId === category.id && subcategories.length > 0 && (
-                <div className="absolute left-0 top-full z-40 mt-0 min-w-max rounded-md border border-slate-200 bg-white shadow-lg">
+              {hasHoverSubcategories && isHovered && subcategories.length > 0 && (
+                <div
+                  className="absolute left-0 top-full z-40 mt-1 min-w-max rounded-md border border-slate-200 bg-white shadow-lg"
+                  onMouseEnter={() => {
+                    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+                  }}
+                  onMouseLeave={() => {
+                    hoverTimerRef.current = setTimeout(() => {
+                      setHoverCategoryId(null);
+                    }, 200);
+                  }}
+                >
                   <div className="max-h-96 overflow-y-auto p-3">
-                    <ul className="space-y-2">
+                    <ul className="space-y-1">
                       {subcategories.map((sub) => (
                         <li key={sub.id}>
                           <Link
                             href={`/c/${sub.slug}`}
                             onClick={() => setHoverCategoryId(null)}
-                            className="block rounded px-3 py-1.5 text-sm text-slate-700 transition hover:bg-orange-50 hover:text-orange-600"
+                            className="block rounded px-3 py-2 text-sm text-slate-700 transition hover:bg-orange-50 hover:text-orange-600"
                           >
                             {sub.name}
                           </Link>

@@ -8,6 +8,9 @@ import { AuthSessionSync } from "@/components/auth-session-sync";
 export const metadata: Metadata = {
   title: "Haat Nepal",
   description: "A Nepal-focused marketplace for classifieds, property, jobs, and businesses.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
