@@ -6,21 +6,21 @@ export default async function ConfirmEmailPage({
 }: {
   searchParams: Promise<{ token?: string }>;
 }) {
-  const params = await searchParams;
-  const token = params.token;
-
-  if (!token) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600">Invalid Link</h1>
-          <p className="mt-2 text-slate-600">No confirmation token provided.</p>
-        </div>
-      </div>
-    );
-  }
-
   try {
+    const params = await searchParams;
+    const token = params.token;
+
+    if (!token) {
+      return (
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-600">Invalid Link</h1>
+            <p className="mt-2 text-slate-600">No confirmation token provided.</p>
+          </div>
+        </div>
+      );
+    }
+
     const adminClient = createAdminClient();
 
     // Find the token in the database
