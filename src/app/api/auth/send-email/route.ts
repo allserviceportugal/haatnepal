@@ -40,7 +40,20 @@ export async function POST(request: NextRequest) {
   try {
     console.log("[AUTH HOOK] Received request");
 
-    const data = await request.json();
+    // Get the raw body for signature verification
+    const body = await request.text();
+    const signature = request.headers.get("svix-signature") || "";
+
+    // Verify webhook signature
+    if (!verifySupabaseWebhook(body, signature, HOOK_SECRET)) {
+      console.error("[AUTH HOOK] Webhook signature verification failed");
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const data = JSON.parse(body);
     console.log("[AUTH HOOK] Parsed body:", { type: data.type, email: data.email });
 
     const { type, email, confirmation_url } = data;
