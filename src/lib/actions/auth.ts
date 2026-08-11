@@ -103,10 +103,10 @@ export async function signUpAction(
 
   console.log("[SIGNUP] Auth user created:", authData.user.id);
 
-  // Create profile with email_confirmed = false (using admin client to bypass RLS)
-  console.log("[SIGNUP] Creating profile...");
+  // Create or update profile with email_confirmed = false (using admin client to bypass RLS)
+  console.log("[SIGNUP] Creating/updating profile...");
   const adminClient = createAdminClient();
-  const { error: profileError } = await adminClient.from("profiles").insert({
+  const { error: profileError } = await adminClient.from("profiles").upsert({
     id: authData.user.id,
     display_name: displayName,
     email,
