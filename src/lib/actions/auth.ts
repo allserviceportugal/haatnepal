@@ -175,16 +175,17 @@ export async function signUpAction(
       password,
     });
 
-    // Redirect to home
-    redirect("/");
+    console.log("[SIGNUP] User signed in automatically");
   } catch (error) {
     console.error("[SIGNUP] Auto-signin failed:", error);
-    return {
-      success: true,
-      step: 'success',
-      email,
-    };
   }
+
+  // Return success state - client will handle redirect with message
+  return {
+    success: true,
+    step: 'success',
+    email,
+  };
 }
 
 /**
