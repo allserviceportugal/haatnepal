@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import crypto from "crypto";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import {
   signUpSchema,
@@ -102,9 +103,10 @@ export async function signUpAction(
 
   console.log("[SIGNUP] Auth user created:", authData.user.id);
 
-  // Create profile with email_confirmed = false
+  // Create profile with email_confirmed = false (using admin client to bypass RLS)
   console.log("[SIGNUP] Creating profile...");
-  const { error: profileError } = await supabase.from("profiles").insert({
+  const adminClient = createAdminClient();
+  const { error: profileError } = await adminClient.from("profiles").insert({
     id: authData.user.id,
     display_name: displayName,
     email,
@@ -125,9 +127,9 @@ export async function signUpAction(
 
   console.log("[SIGNUP] Profile created, generating confirmation token...");
 
-  // Generate confirmation token
+  // Generate confirmation token (using admin client to bypass RLS)
   const token = crypto.randomBytes(32).toString("hex");
-  const { error: tokenError } = await supabase
+  const { error: tokenError } = await adminClient
     .from("email_confirmation_tokens")
     .insert({
       user_id: authData.user.id,

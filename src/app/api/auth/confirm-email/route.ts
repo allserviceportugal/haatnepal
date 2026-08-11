@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,10 +14,10 @@ export async function GET(request: NextRequest) {
 
     console.log("[CONFIRM EMAIL] Received token");
 
-    const supabase = await createClient();
+    const adminClient = createAdminClient();
 
     // Find the token in the database
-    const { data: tokenData, error: tokenError } = await supabase
+    const { data: tokenData, error: tokenError } = await adminClient
       .from("email_confirmation_tokens")
       .select("id, user_id, email, expires_at, used_at")
       .eq("token", token)
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     // Mark email as confirmed
     console.log("[CONFIRM EMAIL] Updating profile for user:", tokenData.user_id);
-    const { error: updateError } = await supabase
+    const { error: updateError } = await adminClient
       .from("profiles")
       .update({ email_confirmed: true })
       .eq("id", tokenData.user_id);
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Mark token as used
-    await supabase
+    await adminClient
       .from("email_confirmation_tokens")
       .update({ used_at: new Date().toISOString() })
       .eq("id", tokenData.id);
