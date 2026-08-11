@@ -148,9 +148,9 @@ export async function signUpAction(
   });
 
   if (profileError) {
-    console.error("[SIGNUP] Profile creation failed:", profileError?.message);
+    console.error("[SIGNUP] Profile creation failed:", JSON.stringify(profileError));
     return {
-      error: `Profile creation failed: ${profileError?.message || "unknown error"}`,
+      error: `Profile creation failed: ${profileError?.message || "unknown error"}. Details: ${JSON.stringify(profileError)}`,
       step: 'email',
       formValues: { displayName, email, phone, accountType },
     };
