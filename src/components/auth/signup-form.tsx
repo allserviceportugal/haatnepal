@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState } from "react";
 import Link from "next/link";
-import { signUpAction, verifyCodeAction, resendCodeAction } from "@/lib/actions/auth";
+import { signUpAction, verifySignupCodeAction } from "@/lib/actions/auth";
+import { VerifyCodeForm } from "./verify-code-form";
+import { SetPasswordForm } from "./set-password-form";
 
 export function SignupForm({ next }: { next?: string }) {
   const [state, formAction, isPending] = useActionState(signUpAction, {
@@ -10,7 +12,7 @@ export function SignupForm({ next }: { next?: string }) {
   });
 
   // Step 1: Email + Name + Phone + Account Type
-  if (state.step !== 'verify' && !state.codeSent) {
+  if (state.step !== 'verify' && state.step !== 'set-password' && !state.codeSent) {
     return (
       <form action={formAction} className="space-y-5">
         {next && <input type="hidden" name="next" value={next} />}
@@ -112,7 +114,7 @@ export function SignupForm({ next }: { next?: string }) {
   }
 
   // Step 2: Verify Code
-  if (state.codeSent) {
+  if (state.codeSent && state.step === 'verify') {
     return (
       <div className="space-y-5">
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-800">
@@ -124,87 +126,36 @@ export function SignupForm({ next }: { next?: string }) {
           <p className="mt-1 text-xs">The code expires in 10 minutes.</p>
         </div>
 
-        <VerifyCodeForm email={state.email || ""} next={next} />
+        <VerifyCodeForm
+          email={state.email || ""}
+          action={verifySignupCodeAction}
+          actionName="verifySignupCodeAction"
+          next={next}
+        />
+      </div>
+    );
+  }
+
+  // Step 3: Set Password
+  if (state.step === 'set-password' && state.mode === 'signup') {
+    return (
+      <div className="space-y-5">
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-800">
+          <p className="font-semibold">Almost there!</p>
+          <p className="mt-2">
+            Create a password to secure your account
+          </p>
+        </div>
+
+        <SetPasswordForm
+          email={state.email || ""}
+          mode="signup"
+          next={next}
+          showRememberMe={false}
+        />
       </div>
     );
   }
 
   return null;
-}
-
-function VerifyCodeForm({ email, next }: { email: string; next?: string }) {
-  const [state, formAction, isPending] = useActionState(verifyCodeAction, {
-    step: 'verify',
-    email,
-  });
-
-  return (
-    <form action={formAction} className="space-y-5">
-      {next && <input type="hidden" name="next" value={next} />}
-      <input type="hidden" name="email" value={email} />
-
-      {state.error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {state.error}
-        </div>
-      )}
-
-      <div>
-        <label className="block text-sm font-semibold text-slate-700">
-          Enter 6-digit code
-        </label>
-        <input
-          type="text"
-          name="code"
-          inputMode="numeric"
-          placeholder="000000"
-          maxLength={6}
-          pattern="\d{6}"
-          required
-          className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-center text-2xl tracking-widest font-mono outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
-        />
-      </div>
-
-      <button
-        type="submit"
-        disabled={isPending}
-        className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-orange-200 transition hover:bg-orange-600 disabled:opacity-60"
-      >
-        {isPending ? "Verifying..." : "Verify Code"}
-      </button>
-
-      <ResendCodeButton email={email} />
-    </form>
-  );
-}
-
-function ResendCodeButton({ email }: { email: string }) {
-  const [isPending, startTransition] = useTransition();
-  const [cooldown, setCooldown] = useState(0);
-
-  const handleResend = () => {
-    startTransition(async () => {
-      const fd = new FormData();
-      fd.set("email", email);
-      await resendCodeAction({}, fd);
-
-      setCooldown(30);
-      const timer = setInterval(() => {
-        setCooldown((c) => {
-          if (c <= 1) clearInterval(timer);
-          return c - 1;
-        });
-      }, 1000);
-    });
-  };
-
-  return (
-    <button
-      onClick={handleResend}
-      disabled={isPending || cooldown > 0}
-      className="text-center text-sm font-semibold text-orange-600 hover:text-orange-700 disabled:text-slate-400"
-    >
-      {cooldown > 0 ? `Resend in ${cooldown}s` : "Didn't receive code? Resend"}
-    </button>
-  );
 }

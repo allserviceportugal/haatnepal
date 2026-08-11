@@ -2,23 +2,29 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
-import { signUpSchema, verifyCodeSchema, signInSchema } from "@/lib/validations/auth";
+import {
+  signUpSchema,
+  verifyCodeSchema,
+  loginSchema,
+  forgotPasswordSchema,
+  setPasswordSchema,
+} from "@/lib/validations/auth";
 import { createOtpCode, checkOtpCode, markOtpCodeVerified } from "@/lib/utils/otp";
 import { sendOtpEmail, sendWelcomeEmail } from "@/lib/services/email";
 
 export type AuthActionState = {
   error?: string;
   codeSent?: boolean;
-  step?: 'email' | 'verify';
+  step?: 'email' | 'verify' | 'set-password';
+  mode?: 'signup' | 'reset';
   email?: string;
   success?: boolean;
 };
 
 const NOT_CONFIGURED_ERROR =
   "Supabase isn't configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local.";
-
-// Trigger deployment with Resend API key in environment
 
 /**
  * SIGNUP: Generate and send 6-digit OTP to email
@@ -48,7 +54,6 @@ export async function signUpAction(
 
   const { displayName, email, phone, accountType } = parsed.data;
 
-  // Generate and store 6-digit OTP code
   const { code, error: otpError } = await createOtpCode(email, {
     display_name: displayName,
     phone,
@@ -62,7 +67,6 @@ export async function signUpAction(
     };
   }
 
-  // Send OTP email with haatnepal branding
   const emailSent = await sendOtpEmail(email, code);
   if (!emailSent) {
     return {
@@ -79,9 +83,10 @@ export async function signUpAction(
 }
 
 /**
- * VERIFY CODE: User enters 6-digit code from email
+ * VERIFY SIGNUP CODE: User enters 6-digit code from email during signup
+ * Creates account and signs in temporarily, then prompts to set password
  */
-export async function verifyCodeAction(
+export async function verifySignupCodeAction(
   _prevState: AuthActionState,
   formData: FormData
 ): Promise<AuthActionState> {
@@ -104,8 +109,6 @@ export async function verifyCodeAction(
   }
 
   const { email, code } = parsed.data;
-
-  // Check if the OTP code is valid (don't mark as verified yet)
   const { valid, metadata, error } = await checkOtpCode(email, code);
 
   if (!valid) {
@@ -124,7 +127,6 @@ export async function verifyCodeAction(
     };
   }
 
-  // Create Supabase user
   const supabase = await createClient();
   const randomPassword = Math.random().toString(36).slice(-20);
   const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -148,7 +150,6 @@ export async function verifyCodeAction(
     };
   }
 
-  // Get or create profile
   const { data: existingProfile } = await supabase
     .from("profiles")
     .select("id")
@@ -163,6 +164,7 @@ export async function verifyCodeAction(
       phone: metadata.phone,
       account_type: metadata.account_type,
       phone_verified: false,
+      password_set: false,
     });
 
     if (profileError) {
@@ -175,13 +177,9 @@ export async function verifyCodeAction(
     }
   }
 
-  // NOW mark the OTP code as verified (after everything succeeded)
   await markOtpCodeVerified(email, code);
 
-  // Send welcome email
-  await sendWelcomeEmail(email, metadata.display_name);
-
-  // Sign in the user with the generated password
+  // Sign in with temporary password to establish session
   const { error: signInError } = await supabase.auth.signInWithPassword({
     email,
     password: randomPassword,
@@ -196,14 +194,18 @@ export async function verifyCodeAction(
     };
   }
 
-  const nextPath = formData.get("next");
-  redirect(typeof nextPath === "string" && nextPath.startsWith("/") ? nextPath : "/");
+  // Return to set-password step instead of redirecting
+  return {
+    step: 'set-password',
+    mode: 'signup',
+    email,
+  };
 }
 
 /**
- * LOGIN: Send OTP code to existing user
+ * SET PASSWORD: User sets their password after signup or password reset
  */
-export async function signInAction(
+export async function setPasswordAction(
   _prevState: AuthActionState,
   formData: FormData
 ): Promise<AuthActionState> {
@@ -211,7 +213,234 @@ export async function signInAction(
     return { error: NOT_CONFIGURED_ERROR };
   }
 
-  const parsed = signInSchema.safeParse({
+  const parsed = setPasswordSchema.safeParse({
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+
+  if (!parsed.success) {
+    const email = formData.get("email") as string;
+    const mode = formData.get("mode") as string;
+    return {
+      error: parsed.error.issues[0]?.message ?? "Please check the form and try again.",
+      step: 'set-password',
+      mode: mode as 'signup' | 'reset',
+      email,
+    };
+  }
+
+  const { password } = parsed.data;
+  const email = formData.get("email") as string;
+  const mode = formData.get("mode") as string;
+  const rememberMe = formData.get("rememberMe") === "on";
+  const next = formData.get("next") as string | null;
+
+  if (!email || !mode) {
+    return {
+      error: "Invalid request. Please try again.",
+      step: 'set-password',
+    };
+  }
+
+  if (mode === 'signup') {
+    // Signup flow: user has an active session
+    try {
+      const supabase = await createClient();
+      const { error: updateError } = await supabase.auth.updateUser({
+        password,
+      });
+
+      if (updateError) {
+        console.error("Error updating password:", updateError);
+        return {
+          error: "Failed to set password. Please try again.",
+          step: 'set-password',
+          mode: 'signup',
+          email,
+        };
+      }
+
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ password_set: true })
+        .eq("email", email);
+
+      if (profileError) {
+        console.error("Error updating profile:", profileError);
+        return {
+          error: "Password set but profile update failed. Please contact support.",
+          step: 'set-password',
+          mode: 'signup',
+          email,
+        };
+      }
+
+      await sendWelcomeEmail(email, formData.get("displayName") as string ?? "User");
+
+      const nextPath = next && typeof next === "string" && next.startsWith("/") ? next : "/";
+      redirect(nextPath);
+    } catch (error) {
+      console.error("Error in set password (signup):", error);
+      return {
+        error: "An error occurred. Please try again.",
+        step: 'set-password',
+        mode: 'signup',
+        email,
+      };
+    }
+  } else if (mode === 'reset') {
+    // Reset flow: user has no active session, need admin client
+    try {
+      const supabase = await createClient({ rememberMe });
+      const admin = createAdminClient();
+
+      // Look up the user by email to get their ID
+      const { data: profile, error: profileLookupError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", email)
+        .single();
+
+      if (profileLookupError || !profile) {
+        return {
+          error: "User not found. Please try again.",
+          step: 'set-password',
+          mode: 'reset',
+          email,
+        };
+      }
+
+      // Use admin client to update password
+      const { error: adminError } = await admin.auth.admin.updateUserById(profile.id, {
+        password,
+      });
+
+      if (adminError) {
+        console.error("Error updating password via admin:", adminError);
+        return {
+          error: "Failed to set password. Please try again.",
+          step: 'set-password',
+          mode: 'reset',
+          email,
+        };
+      }
+
+      // Update profile to mark password as set
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ password_set: true })
+        .eq("email", email);
+
+      if (profileError) {
+        console.error("Error updating profile:", profileError);
+        return {
+          error: "Password set but profile update failed. Please contact support.",
+          step: 'set-password',
+          mode: 'reset',
+          email,
+        };
+      }
+
+      // Sign in the user with their new password to establish session
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        console.error("Error signing in after password reset:", signInError);
+        return {
+          error: "Password updated but login failed. Please try logging in.",
+          step: 'set-password',
+          mode: 'reset',
+          email,
+        };
+      }
+
+      const nextPath = next && typeof next === "string" && next.startsWith("/") ? next : "/";
+      redirect(nextPath);
+    } catch (error) {
+      console.error("Error in set password (reset):", error);
+      return {
+        error: "An error occurred. Please try again.",
+        step: 'set-password',
+        mode: 'reset',
+        email,
+      };
+    }
+  }
+
+  return {
+    error: "Invalid mode. Please try again.",
+    step: 'set-password',
+  };
+}
+
+/**
+ * LOGIN: Email + Password login (not OTP-based)
+ */
+export async function loginAction(
+  _prevState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: NOT_CONFIGURED_ERROR };
+  }
+
+  const parsed = loginSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+    rememberMe: formData.get("rememberMe"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? "Invalid email or password.",
+      step: 'email',
+    };
+  }
+
+  const { email, password, rememberMe } = parsed.data;
+  const next = formData.get("next");
+
+  try {
+    const supabase = await createClient({ rememberMe });
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      console.error("Login error:", signInError);
+      return {
+        error: "Invalid email or password.",
+        step: 'email',
+      };
+    }
+
+    const nextPath = next && typeof next === "string" && next.startsWith("/") ? next : "/";
+    redirect(nextPath);
+  } catch (error) {
+    console.error("Error during login:", error);
+    return {
+      error: "An error occurred. Please try again.",
+      step: 'email',
+    };
+  }
+}
+
+/**
+ * FORGOT PASSWORD: Send OTP to email for password reset
+ */
+export async function forgotPasswordAction(
+  _prevState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: NOT_CONFIGURED_ERROR };
+  }
+
+  const parsed = forgotPasswordSchema.safeParse({
     email: formData.get("email"),
   });
 
@@ -231,12 +460,11 @@ export async function signInAction(
 
   if (!user) {
     return {
-      error: "No account found with this email. Please sign up first.",
+      error: "No account found with this email.",
       step: 'email',
     };
   }
 
-  // Generate and send OTP code for login
   const { code, error: otpError } = await createOtpCode(email, {
     display_name: "",
     phone: "",
@@ -250,7 +478,6 @@ export async function signInAction(
     };
   }
 
-  // Send OTP email
   const emailSent = await sendOtpEmail(email, code);
   if (!emailSent) {
     return {
@@ -267,7 +494,52 @@ export async function signInAction(
 }
 
 /**
- * RESEND CODE: User didn't receive code
+ * VERIFY RESET CODE: User enters 6-digit code during password reset
+ */
+export async function verifyResetCodeAction(
+  _prevState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: NOT_CONFIGURED_ERROR };
+  }
+
+  const parsed = verifyCodeSchema.safeParse({
+    email: formData.get("email"),
+    code: formData.get("code"),
+  });
+
+  if (!parsed.success) {
+    const email = (formData.get("email") as string) ?? '';
+    return {
+      error: parsed.error.issues[0]?.message ?? "Invalid code",
+      step: 'verify',
+      email,
+    };
+  }
+
+  const { email, code } = parsed.data;
+  const { valid, error } = await checkOtpCode(email, code);
+
+  if (!valid) {
+    return {
+      error: error || "Invalid or expired code. Request a new one.",
+      step: 'verify',
+      email,
+    };
+  }
+
+  await markOtpCodeVerified(email, code);
+
+  return {
+    step: 'set-password',
+    mode: 'reset',
+    email,
+  };
+}
+
+/**
+ * RESEND CODE: User didn't receive code (used by both signup and password reset)
  */
 export async function resendCodeAction(
   _prevState: AuthActionState,
@@ -280,7 +552,6 @@ export async function resendCodeAction(
   const email = formData.get("email") as string;
   if (!email) return { error: "Email required" };
 
-  // Generate new OTP code
   const { code, error: otpError } = await createOtpCode(email, {
     display_name: "",
     phone: "",
@@ -291,7 +562,6 @@ export async function resendCodeAction(
     return { error: "Failed to generate verification code", email };
   }
 
-  // Send OTP email
   const emailSent = await sendOtpEmail(email, code);
   if (!emailSent) {
     return { error: "Failed to send verification email", email };

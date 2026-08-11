@@ -40,15 +40,50 @@ export const verifyCodeSchema = z.object({
 });
 
 /**
- * LOGIN: Email only (OTP will be sent)
+ * FORGOT PASSWORD: Email only (OTP will be sent)
  */
-export const signInSchema = z.object({
+export const forgotPasswordSchema = z.object({
   email: z
     .string()
     .trim()
     .email("Enter a valid email address"),
 });
 
+/**
+ * LOGIN: Email + Password
+ */
+export const loginSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .email("Enter a valid email address"),
+  password: z
+    .string()
+    .min(1, "Password is required"),
+  rememberMe: z
+    .enum(["on", "off"])
+    .optional()
+    .default("on")
+    .transform(v => v === "on"),
+});
+
+/**
+ * SET PASSWORD: New password + confirm password
+ */
+export const setPasswordSchema = z.object({
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(100, "Password too long"),
+  confirmPassword: z
+    .string(),
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type VerifyCodeInput = z.infer<typeof verifyCodeSchema>;
-export type SignInInput = z.infer<typeof signInSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;
+export type SetPasswordInput = z.infer<typeof setPasswordSchema>;
