@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
+import { isWithinEditWindow } from "@/lib/format";
 import { ListingForm } from "@/components/listing-form";
 import { updateListingAction } from "@/lib/actions/listings";
 
@@ -42,6 +43,7 @@ export default async function EditListingPage({ params }: { params: Promise<{ id
 
   if (!listing) notFound();
   if (listing.seller_id !== user.id) redirect(`/listing/${id}`);
+  if (!isWithinEditWindow(listing.created_at)) redirect(`/listing/${id}`);
 
   const boundUpdateAction = updateListingAction.bind(null, id);
 

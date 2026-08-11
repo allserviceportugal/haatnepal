@@ -58,7 +58,7 @@ export default async function ConversationPage({
           <p className="text-sm text-slate-500">
             with {otherParty?.display_name ?? "User"}
             {conversation.listings?.price !== undefined &&
-              ` · Listed at ${formatPrice(conversation.listings.price, conversation.listings.currency)}`}
+              ` · Listed at ${formatPrice(conversation.listings.price, conversation.listings.currency, conversation.listings.price_on_request)}`}
           </p>
         </div>
       </div>

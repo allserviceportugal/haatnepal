@@ -1,4 +1,5 @@
-export function formatPrice(price: number, currency: string = "NPR") {
+export function formatPrice(price: number, currency: string = "NPR", priceOnRequest?: boolean) {
+  if (priceOnRequest) return "Contact for price";
   return `${currency} ${new Intl.NumberFormat("en-NP").format(price)}`;
 }
 
@@ -20,6 +21,23 @@ export function timeAgo(dateString: string) {
 
   const years = Math.floor(months / 12);
   return `${years} year${years === 1 ? "" : "s"} ago`;
+}
+
+export function isWithinEditWindow(createdAt: string, minutes: number = 15): boolean {
+  const created = new Date(createdAt).getTime();
+  const now = Date.now();
+  const elapsedMs = now - created;
+  const elapsedMinutes = Math.floor(elapsedMs / 60_000);
+  return elapsedMinutes < minutes;
+}
+
+export function minutesUntilEditWindowCloses(createdAt: string, minutes: number = 15): number {
+  const created = new Date(createdAt).getTime();
+  const now = Date.now();
+  const elapsedMs = now - created;
+  const elapsedMinutes = Math.floor(elapsedMs / 60_000);
+  const remaining = minutes - elapsedMinutes;
+  return Math.max(0, remaining);
 }
 
 export function formatSalary(

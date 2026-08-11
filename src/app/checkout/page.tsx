@@ -161,7 +161,7 @@ export default function CheckoutPage() {
                   <li key={item.listingId} className="flex justify-between gap-3">
                     <span>{item.title}</span>
                     <span className="shrink-0 font-semibold">
-                      {formatPrice(item.price, item.currency)}
+                      {formatPrice(item.price, item.currency, item.price_on_request)}
                     </span>
                   </li>
                 ))}

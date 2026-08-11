@@ -143,6 +143,7 @@ export type Listing = {
   farm_location: string | null;
   for_rent: boolean;
   rental_rate_period: string | null;
+  price_on_request: boolean;
   created_at: string;
   updated_at: string;
   expires_at: string;

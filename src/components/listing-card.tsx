@@ -80,7 +80,7 @@ export function ListingCard({
 
       <div className="space-y-1.5 p-2.5">
         <p className="text-lg font-black leading-none text-slate-900">
-          {formatPrice(listing.price, listing.currency)}
+          {formatPrice(listing.price, listing.currency, listing.price_on_request)}
           {listing.unit_of_sale && (
             <span className="ml-1 text-xs text-slate-600">/{listing.unit_of_sale}</span>
           )}

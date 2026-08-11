@@ -18,6 +18,7 @@ interface ListingCTASectionProps {
   listingImage: string | null;
   config: TransactionConfig;
   currentUserId?: string;
+  priceOnRequest?: boolean;
 }
 
 export function ListingCTASection({
@@ -31,6 +32,7 @@ export function ListingCTASection({
   listingImage,
   config,
   currentUserId,
+  priceOnRequest,
 }: ListingCTASectionProps) {
   const router = useRouter();
   const { addItem } = useCart();
@@ -136,7 +138,7 @@ export function ListingCTASection({
               Login to message seller
             </button>
           )}
-          {config.allow_checkout && (
+          {config.allow_checkout && !priceOnRequest && (
             <button
               onClick={() => router.push(`/login?next=/listing/${listingId}`)}
               className="w-full rounded-full bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700"
@@ -151,7 +153,7 @@ export function ListingCTASection({
       {currentUserId && (
         <>
           {/* Direct Purchase CTAs */}
-          {config.default_transaction_mode === 'direct_purchase' && (
+          {config.default_transaction_mode === 'direct_purchase' && !priceOnRequest && (
             <>
               <button
                 onClick={handleBuyNow}

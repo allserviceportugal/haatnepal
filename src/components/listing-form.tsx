@@ -82,6 +82,16 @@ export function ListingForm({
   const [forRent, setForRent] = useState<boolean>(defaultValues?.for_rent ?? false);
   const [rentalRatePeriod, setRentalRatePeriod] = useState<string>((defaultValues?.rental_rate_period as any) ?? "");
 
+  // Delivery mode and price-on-request
+  const [deliveryMode, setDeliveryMode] = useState<"pickup" | "courier" | "not_applicable">(
+    (defaultValues?.pickup_available && defaultValues?.courierIds?.length)
+      ? "courier"
+      : defaultValues?.pickup_available
+      ? "pickup"
+      : "not_applicable"
+  );
+  const [priceOnRequest, setPriceOnRequest] = useState<boolean>((defaultValues?.price_on_request as any) ?? false);
+
   // The effective category is the last selected one in the path.
   const effectiveCategoryId = categoryPath[categoryPath.length - 1] ?? "";
 
@@ -146,6 +156,23 @@ export function ListingForm({
     let current = effectiveCategoryId ? categoryMap.get(effectiveCategoryId) : null;
     while (current) {
       if (current.slug === "agriculture") return true;
+      current = current.parent_id ? categoryMap.get(current.parent_id) : null;
+    }
+    return false;
+  }, [effectiveCategoryId, categories]);
+
+  // Helper: check if a category is intangible (no physical delivery needed)
+  const isIntangibleListing = useMemo(() => {
+    const categoryMap = new Map(categories.map((c) => [c.id, c]));
+    let current = effectiveCategoryId ? categoryMap.get(effectiveCategoryId) : null;
+    const intangibleSlugs = [
+      "services",
+      "businesses-for-sale",
+      "business-cooperation-investment",
+      "government-notices-tenders",
+    ];
+    while (current) {
+      if (intangibleSlugs.includes(current.slug)) return true;
       current = current.parent_id ? categoryMap.get(current.parent_id) : null;
     }
     return false;
@@ -220,7 +247,7 @@ export function ListingForm({
         <label className="block text-sm font-semibold text-slate-700">Title</label>
         <input
           name="title"
-          defaultValue={defaultValues?.title}
+          defaultValue={(state.formValues?.title as string) ?? defaultValues?.title ?? ""}
           required
           minLength={5}
           maxLength={120}
@@ -233,7 +260,7 @@ export function ListingForm({
         <label className="block text-sm font-semibold text-slate-700">Description</label>
         <textarea
           name="description"
-          defaultValue={defaultValues?.description}
+          defaultValue={(state.formValues?.description as string) ?? defaultValues?.description ?? ""}
           required
           minLength={20}
           maxLength={5000}
@@ -251,10 +278,21 @@ export function ListingForm({
             name="price"
             min={0}
             step="0.01"
-            defaultValue={defaultValues?.price}
-            required
-            className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+            defaultValue={(state.formValues?.price as string) ?? defaultValues?.price ?? ""}
+            disabled={priceOnRequest}
+            required={!priceOnRequest}
+            className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300 disabled:bg-slate-50 disabled:text-slate-400"
           />
+          <label className="mt-2 flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={priceOnRequest}
+              onChange={(e) => setPriceOnRequest(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            Price on request (advertisement only — no fixed price)
+            <input type="hidden" name="priceOnRequest" value={priceOnRequest ? "on" : ""} />
+          </label>
         </div>
 
         {categoryLevels.map((level, levelIndex) => (
@@ -291,7 +329,7 @@ export function ListingForm({
               <label className="block text-sm font-semibold text-slate-700">Condition</label>
               <select
                 name="condition"
-                defaultValue={defaultValues?.condition ?? "used"}
+                defaultValue={(state.formValues?.condition as string) ?? defaultValues?.condition ?? "used"}
                 className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
               >
                 <option value="new">New</option>
@@ -303,7 +341,7 @@ export function ListingForm({
               <label className="block text-sm font-semibold text-slate-700">Listing type</label>
               <select
                 name="listingType"
-                defaultValue={defaultValues?.listing_type ?? "classified"}
+                defaultValue={(state.formValues?.listingType as string) ?? defaultValues?.listing_type ?? "classified"}
                 className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
               >
                 <option value="classified">Classified (negotiate in chat)</option>
@@ -324,7 +362,7 @@ export function ListingForm({
           <label className="block text-sm font-semibold text-slate-700">District</label>
           <select
             name="district"
-            defaultValue={defaultValues?.district ?? ""}
+            defaultValue={(state.formValues?.district as string) ?? defaultValues?.district ?? ""}
             required
             className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
           >
@@ -458,7 +496,7 @@ export function ListingForm({
               <input
                 type="text"
                 name="municipality"
-                defaultValue={defaultValues?.municipality ?? ""}
+                defaultValue={(state.formValues?.municipality as string) ?? defaultValues?.municipality ?? ""}
                 className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
                 placeholder="e.g. Kathmandu Metropolitan City"
               />
@@ -471,7 +509,7 @@ export function ListingForm({
                 name="ward_number"
                 min={1}
                 max={99}
-                defaultValue={defaultValues?.ward_number ?? ""}
+                defaultValue={(state.formValues?.ward_number as string) ?? defaultValues?.ward_number ?? ""}
                 className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
                 placeholder="e.g. 5"
               />
@@ -482,7 +520,7 @@ export function ListingForm({
               <input
                 type="text"
                 name="tole"
-                defaultValue={defaultValues?.tole ?? ""}
+                defaultValue={(state.formValues?.tole as string) ?? defaultValues?.tole ?? ""}
                 className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
                 placeholder="e.g. Baneshwor"
               />
@@ -494,7 +532,7 @@ export function ListingForm({
           <label className="block text-sm font-semibold text-slate-700">City / area (optional)</label>
           <input
             name="city"
-            defaultValue={defaultValues?.city ?? ""}
+            defaultValue={(state.formValues?.city as string) ?? defaultValues?.city ?? ""}
             className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
             placeholder="e.g. Baneshwor"
           />
@@ -675,7 +713,7 @@ export function ListingForm({
                 type="text"
                 name="company_name"
                 maxLength={200}
-                defaultValue={defaultValues?.company_name ?? ""}
+                defaultValue={(state.formValues?.company_name as string) ?? defaultValues?.company_name ?? ""}
                 className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
                 placeholder="e.g. Acme Corporation (or leave blank to use your profile name)"
               />
@@ -687,7 +725,7 @@ export function ListingForm({
                 type="number"
                 name="vacancies_count"
                 min={1}
-                defaultValue={defaultValues?.vacancies_count ?? ""}
+                defaultValue={(state.formValues?.vacancies_count as string) ?? defaultValues?.vacancies_count ?? ""}
                 className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
                 placeholder="e.g. 3"
               />
@@ -701,7 +739,7 @@ export function ListingForm({
                   name="salary_min"
                   min={0}
                   step="0.01"
-                  defaultValue={defaultValues?.salary_min ?? ""}
+                  defaultValue={(state.formValues?.salary_min as string) ?? defaultValues?.salary_min ?? ""}
                   className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
                   placeholder="e.g. 40000"
                 />
@@ -714,7 +752,7 @@ export function ListingForm({
                   name="salary_max"
                   min={0}
                   step="0.01"
-                  defaultValue={defaultValues?.salary_max ?? ""}
+                  defaultValue={(state.formValues?.salary_max as string) ?? defaultValues?.salary_max ?? ""}
                   className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
                   placeholder="e.g. 60000"
                 />
@@ -752,7 +790,7 @@ export function ListingForm({
               <input
                 type="date"
                 name="application_deadline"
-                defaultValue={defaultValues?.application_deadline ?? ""}
+                defaultValue={(state.formValues?.application_deadline as string) ?? defaultValues?.application_deadline ?? ""}
                 className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
               />
             </div>
@@ -762,7 +800,7 @@ export function ListingForm({
               <input
                 type="url"
                 name="external_apply_url"
-                defaultValue={defaultValues?.external_apply_url ?? ""}
+                defaultValue={(state.formValues?.external_apply_url as string) ?? defaultValues?.external_apply_url ?? ""}
                 className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
                 placeholder="https://careers.example.com/apply — leave blank to let candidates apply directly on haatnepal"
               />
@@ -1044,17 +1082,44 @@ export function ListingForm({
       {!isRealEstateListing && !isJobsListing && (
         <div>
           <label className="block text-sm font-semibold text-slate-700">Delivery</label>
-          <label className="mt-2 flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              name="pickupAvailable"
-              defaultChecked={defaultValues?.pickup_available ?? true}
-              className="h-4 w-4 rounded border-slate-300"
-            />
-            Buyer can pick up in person
-          </label>
-          {couriers.length > 0 && (
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <div className="mt-3 space-y-2">
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="radio"
+                name="deliveryMode"
+                value="pickup"
+                checked={deliveryMode === "pickup"}
+                onChange={() => setDeliveryMode("pickup")}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Buyer can pick up in person
+            </label>
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="radio"
+                name="deliveryMode"
+                value="courier"
+                checked={deliveryMode === "courier"}
+                onChange={() => setDeliveryMode("courier")}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Courier delivery available
+            </label>
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="radio"
+                name="deliveryMode"
+                value="not_applicable"
+                checked={deliveryMode === "not_applicable"}
+                onChange={() => setDeliveryMode("not_applicable")}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Not applicable — no physical item
+            </label>
+          </div>
+
+          {deliveryMode === "courier" && couriers.length > 0 && (
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {couriers.map((courier) => (
                 <label key={courier.id} className="flex items-center gap-2 text-sm text-slate-700">
                   <input
@@ -1069,6 +1134,8 @@ export function ListingForm({
               ))}
             </div>
           )}
+
+          <input type="hidden" name="pickupAvailable" value={deliveryMode === "pickup" ? "on" : ""} />
         </div>
       )}
 

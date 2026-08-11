@@ -37,7 +37,7 @@ export default async function ListingMetricsPage({ params }: { params: Promise<{
             ← Back to listings
           </Link>
           <h1 className="mt-2 text-3xl font-black text-slate-900">{listing.title}</h1>
-          <p className="mt-1 text-slate-600">{formatPrice(listing.price, listing.currency)}</p>
+          <p className="mt-1 text-slate-600">{formatPrice(listing.price, listing.currency, listing.price_on_request)}</p>
         </div>
         <Link
           href={`/listing/${listing.id}/edit`}

@@ -13,7 +13,7 @@ import { deleteListingAction, markListingSoldAction } from "@/lib/actions/listin
 import { startConversationAction } from "@/lib/actions/conversations";
 import { withdrawJobApplicationAction } from "@/lib/actions/job-applications";
 import { JobApplicationForm } from "@/components/job-application-form";
-import { formatPrice, formatSalary, timeAgo } from "@/lib/format";
+import { formatPrice, formatSalary, timeAgo, isWithinEditWindow } from "@/lib/format";
 
 export default async function ListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -294,7 +294,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               )}
             </div>
             <p className="mt-2 text-3xl font-black text-orange-600">
-              {formatPrice(listing.price, listing.currency)}
+              {formatPrice(listing.price, listing.currency, listing.price_on_request)}
               {isAgricultureListing && (
                 <>
                   {listing.unit_of_sale && <span className="ml-2 text-lg text-slate-600">/{listing.unit_of_sale}</span>}
@@ -320,12 +320,18 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             <div className="mt-6 flex flex-wrap gap-3">
               {isOwner ? (
                 <>
-                  <Link
-                    href={`/listing/${listing.id}/edit`}
-                    className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-orange-200 hover:text-orange-600"
-                  >
-                    Edit
-                  </Link>
+                  {isWithinEditWindow(listing.created_at) ? (
+                    <Link
+                      href={`/listing/${listing.id}/edit`}
+                      className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-orange-200 hover:text-orange-600"
+                    >
+                      Edit
+                    </Link>
+                  ) : (
+                    <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-500">
+                      Edit window closed (15 min)
+                    </span>
+                  )}
                   {listing.status !== "sold" && (
                     <form action={markListingSoldAction.bind(null, listing.id)}>
                       <button
@@ -372,6 +378,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                   listingImage={images[0]?.url ?? null}
                   config={transactionConfig}
                   currentUserId={user?.id}
+                  priceOnRequest={listing.price_on_request}
                 />
               </div>
             )}

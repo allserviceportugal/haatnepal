@@ -7,13 +7,35 @@ import { createClient } from "@/lib/supabase/server";
 import { listingSchema } from "@/lib/validations/listing";
 import { isDescendantOfSlug } from "@/lib/queries/listings";
 
-export type ListingActionState = { error?: string };
+export type ListingActionState = { error?: string; formValues?: Record<string, string | string[]> };
+
+function formDataToPlainObject(formData: FormData): Record<string, string | string[]> {
+  const obj: Record<string, string | string[]> = {};
+  const keys = new Set<string>();
+  for (const [key, value] of formData.entries()) {
+    keys.add(key);
+    if (key === "courierIds" || key === "listingImages") {
+      if (Array.isArray(obj[key])) {
+        (obj[key] as string[]).push(String(value));
+      } else {
+        obj[key] = [String(value)];
+      }
+    } else {
+      obj[key] = String(value);
+    }
+  }
+  return obj;
+}
 
 function parseListingForm(formData: FormData) {
+  const priceOnRequest = formData.get("priceOnRequest") === "on";
+  const price = priceOnRequest ? "0" : formData.get("price");
+
   return listingSchema.safeParse({
     title: formData.get("title"),
     description: formData.get("description"),
-    price: formData.get("price"),
+    price,
+    priceOnRequest,
     categoryId: formData.get("categoryId"),
     condition: formData.get("condition"),
     listingType: formData.get("listingType"),
@@ -146,7 +168,10 @@ export async function createListingAction(
 
   const parsed = parseListingForm(formData);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Please check the form and try again." };
+    return {
+      error: parsed.error.issues[0]?.message ?? "Please check the form and try again.",
+      formValues: formDataToPlainObject(formData),
+    };
   }
 
   const quotaCheckResult = await checkListingQuota(supabase, user.id);
@@ -154,7 +179,7 @@ export async function createListingAction(
     return { error: quotaCheckResult.error };
   }
 
-  const { title, description, price, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, registrationYear, manufacturingYear, bluebookStatus, importStatus, ownerCount, isModified, accidentHistory, serviceHistory, foodFreshness, bestBeforeDate, manufacturingDate, ingredients, storageInstructions, allergenInfo, harvestDate, unitOfSale, minOrderQuantity, farmLocation, forRent, rentalRatePeriod } =
+  const { title, description, price, priceOnRequest, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, registrationYear, manufacturingYear, bluebookStatus, importStatus, ownerCount, isModified, accidentHistory, serviceHistory, foodFreshness, bestBeforeDate, manufacturingDate, ingredients, storageInstructions, allergenInfo, harvestDate, unitOfSale, minOrderQuantity, farmLocation, forRent, rentalRatePeriod } =
     parsed.data;
   const pickupAvailable = formData.get("pickupAvailable") === "on";
 
@@ -221,6 +246,7 @@ export async function createListingAction(
       farm_location: farmLocation || null,
       for_rent: forRent,
       rental_rate_period: rentalRatePeriod || null,
+      price_on_request: priceOnRequest,
       expires_at: expiresAt,
     })
     .select("id")
@@ -263,10 +289,30 @@ export async function updateListingAction(
 
   const parsed = parseListingForm(formData);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Please check the form and try again." };
+    return {
+      error: parsed.error.issues[0]?.message ?? "Please check the form and try again.",
+      formValues: formDataToPlainObject(formData),
+    };
   }
 
-  const { title, description, price, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, foodFreshness, bestBeforeDate, manufacturingDate, ingredients, storageInstructions, allergenInfo, harvestDate, unitOfSale, minOrderQuantity, farmLocation, forRent, rentalRatePeriod } =
+  // Check 15-minute edit window
+  const { data: listing, error: fetchError } = await supabase
+    .from("listings")
+    .select("created_at, seller_id")
+    .eq("id", listingId)
+    .eq("seller_id", user.id)
+    .single();
+
+  if (fetchError || !listing) {
+    return { error: "Listing not found or you don't have permission to edit it." };
+  }
+
+  const { isWithinEditWindow } = await import("@/lib/format");
+  if (!isWithinEditWindow(listing.created_at)) {
+    return { error: "You can only edit a listing within 15 minutes of posting. To change this listing, please mark it as Sold and create a new one." };
+  }
+
+  const { title, description, price, priceOnRequest, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, foodFreshness, bestBeforeDate, manufacturingDate, ingredients, storageInstructions, allergenInfo, harvestDate, unitOfSale, minOrderQuantity, farmLocation, forRent, rentalRatePeriod } =
     parsed.data;
   const pickupAvailable = formData.get("pickupAvailable") === "on";
 
@@ -279,6 +325,7 @@ export async function updateListingAction(
       title,
       description,
       price,
+      price_on_request: priceOnRequest,
       category_id: categoryId,
       condition,
       listing_type: listingType,

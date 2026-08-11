@@ -13,6 +13,7 @@ export const listingSchema = z.object({
   title: z.string().trim().min(5, "Title must be at least 5 characters").max(120),
   description: z.string().trim().min(20, "Description must be at least 20 characters").max(5000),
   price: z.coerce.number().min(0, "Price can't be negative").max(999_999_999),
+  priceOnRequest: z.boolean().optional().default(false),
   categoryId: z.string().uuid("Choose a category"),
   condition: z.enum(listingConditions),
   listingType: z.enum(listingTypes),
