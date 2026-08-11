@@ -1,5 +1,5 @@
 export function formatPrice(price: number, currency: string = "NPR") {
-  return `${currency} ${new Intl.NumberFormat("en-IN").format(price)}`;
+  return `${currency} ${new Intl.NumberFormat("en-NP").format(price)}`;
 }
 
 export function timeAgo(dateString: string) {
@@ -44,15 +44,15 @@ export function formatSalary(
   }[salaryPeriod as string] || "";
 
   if (salaryMin && salaryMax) {
-    return `NPR ${new Intl.NumberFormat("en-IN").format(salaryMin)} – ${new Intl.NumberFormat("en-IN").format(salaryMax)} ${periodLabel}`.trim();
+    return `NPR ${new Intl.NumberFormat("en-NP").format(salaryMin)} – ${new Intl.NumberFormat("en-NP").format(salaryMax)} ${periodLabel}`.trim();
   }
 
   if (salaryMin) {
-    return `From NPR ${new Intl.NumberFormat("en-IN").format(salaryMin)} ${periodLabel}`.trim();
+    return `From NPR ${new Intl.NumberFormat("en-NP").format(salaryMin)} ${periodLabel}`.trim();
   }
 
   if (salaryMax) {
-    return `Up to NPR ${new Intl.NumberFormat("en-IN").format(salaryMax)} ${periodLabel}`.trim();
+    return `Up to NPR ${new Intl.NumberFormat("en-NP").format(salaryMax)} ${periodLabel}`.trim();
   }
 
   return null;

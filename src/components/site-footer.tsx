@@ -78,7 +78,6 @@ export function SiteFooter() {
             <ul className="mt-3 space-y-2 text-sm">
               <li><Link href="/about" className="text-slate-600 hover:text-orange-600">About Haat Nepal</Link></li>
               <li><Link href="/blog" className="text-slate-600 hover:text-orange-600">Blog</Link></li>
-              <li><Link href="/careers" className="text-slate-600 hover:text-orange-600">Careers</Link></li>
               <li><Link href="/advertise" className="text-slate-600 hover:text-orange-600">Advertise</Link></li>
             </ul>
           </div>
