@@ -4,14 +4,15 @@
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   try {
     const apiKey = process.env.RESEND_API_KEY;
-    console.log("DEBUG: Sending email", {
+    console.log("[EMAIL] Sending email", {
       to,
       apiKeySet: !!apiKey,
       apiKeyLength: apiKey?.length || 0,
+      apiKeyPrefix: apiKey?.substring(0, 10) + "...",
     });
 
     if (!apiKey) {
-      console.error("RESEND_API_KEY is not set in environment");
+      console.error("[EMAIL] ERROR: RESEND_API_KEY is not set in environment");
       return false;
     }
 
@@ -22,7 +23,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
       html,
     };
 
-    console.log("DEBUG: Calling Resend API with payload", { from: payload.from, to: payload.to });
+    console.log("[EMAIL] Calling Resend API with payload", { from: payload.from, to: payload.to });
 
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -33,11 +34,11 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
       body: JSON.stringify(payload),
     });
 
-    console.log("DEBUG: Resend API response status:", response.status);
+    console.log("[EMAIL] Resend API response status:", response.status);
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("Resend API error:", {
+      console.error("[EMAIL] ERROR from Resend API:", {
         status: response.status,
         error: errorData,
       });
@@ -45,10 +46,10 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
     }
 
     const successData = await response.json();
-    console.log("Resend API success:", successData);
+    console.log("[EMAIL] SUCCESS - Resend API response:", successData);
     return true;
   } catch (error) {
-    console.error("Error sending email:", {
+    console.error("[EMAIL] ERROR - Exception during email send:", {
       message: String(error),
       error,
     });
