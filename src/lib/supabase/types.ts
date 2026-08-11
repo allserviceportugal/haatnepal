@@ -267,6 +267,7 @@ export type ConversationWithRelations = Conversation & {
     price?: number;
     currency?: string;
     status?: ListingStatus;
+    price_on_request?: boolean;
     listing_images: { url: string }[];
   } | null;
   buyer: Pick<Profile, "id" | "display_name"> | null;

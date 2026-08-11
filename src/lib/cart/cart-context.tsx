@@ -13,6 +13,7 @@ export interface CartItem {
   district: string;
   quantity: number;
   deliveryMethod?: string;
+  price_on_request?: boolean;
 }
 
 interface CartState {

@@ -55,7 +55,7 @@ export async function getConversation(
     .select(
       `
       *,
-      listings(id, title, price, currency, status, listing_images(url)),
+      listings(id, title, price, currency, status, price_on_request, listing_images(url)),
       buyer:profiles!conversations_buyer_id_fkey(id, display_name),
       seller:profiles!conversations_seller_id_fkey(id, display_name)
     `
