@@ -18,6 +18,8 @@ export type AuthActionState = {
 const NOT_CONFIGURED_ERROR =
   "Supabase isn't configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local.";
 
+// Trigger deployment with Resend API key in environment
+
 /**
  * SIGNUP: Generate and send 6-digit OTP to email
  * Email + Name + Phone + Account Type
