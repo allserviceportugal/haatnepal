@@ -2,204 +2,348 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Blog - Haat Nepal",
-  description: "Latest news, articles, and insights from Haat Nepal marketplace.",
+  description: "Latest news, articles, and insights for buyers and sellers on Nepal's marketplace.",
 };
 
-// Sample blog articles - can be replaced with database queries
+const categories = [
+  { id: "consumer", name: "Consumer", icon: "🛍️", color: "blue" },
+  { id: "business", name: "Business", icon: "💼", color: "purple" },
+  { id: "shopping-tips", name: "Shopping Tips", icon: "💡", color: "emerald" },
+  { id: "selling-guides", name: "Selling Guides", icon: "📦", color: "orange" },
+  { id: "market-news", name: "Market News", icon: "📰", color: "red" },
+  { id: "safety", name: "Safety & Trust", icon: "🔒", color: "amber" },
+];
+
 const articles = [
   {
-    id: "guide-buying-online-safely",
-    title: "Complete Guide to Buying Online Safely on Haat Nepal",
-    excerpt: "Learn best practices for protecting yourself while shopping online. From verifying sellers to secure payment methods.",
-    content: `Online shopping is convenient, but safety should always come first. Here are essential tips to protect yourself on Haat Nepal:
-
-## Verify Seller Information
-Always check seller ratings, response time, and reviews before making a purchase. Look for the verification badge.
-
-## Use Secure Payment Methods
-Choose payment options provided by Haat Nepal (eSewa, Khalti, bank transfer). Never send money outside the platform.
-
-## Inspect Items Carefully
-For local pickups, meet in public places and inspect items thoroughly. Test electronics and verify authenticity.
-
-## Check Buyer Protection
-Every transaction is covered by Buyer Protection. Understand what's covered and how to file claims if needed.
-
-## Communication Best Practices
-Keep all communication on Haat Nepal. This creates a record if disputes arise. Ask detailed questions about items.
-
-By following these guidelines, you can shop confidently and safely on Haat Nepal.`,
+    id: "buying-guide-smartphones",
+    title: "The Ultimate Smartphone Buying Guide for Nepal",
+    excerpt: "Learn what to look for when buying smartphones on Haat Nepal. Compare features, check authenticity, and get the best deal.",
+    category: "shopping-tips",
     author: "Haat Nepal Team",
     date: "2026-08-11",
-    category: "Safety",
-    readTime: "5 min read",
+    readTime: "7 min",
     featured: true,
   },
   {
-    id: "selling-electronics-tips",
-    title: "5 Tips for Selling Electronics Successfully",
-    excerpt: "Best practices for photographing, describing, and pricing electronics to attract serious buyers.",
-    content: `Selling electronics requires attention to detail. Here's how to maximize your sales:
-
-## 1. High-Quality Photos
-Use good lighting and show the device from multiple angles. Include close-ups of the screen, buttons, and any damage.
-
-## 2. Accurate Descriptions
-Clearly state the model, age, condition, and any defects. Include original box and accessories if available.
-
-## 3. Fair Pricing
-Research similar items to price competitively. Price slightly lower than retail for used items.
-
-## 4. Quick Response
-Answer buyer questions within 2 hours. This builds trust and increases sales.
-
-## 5. Secure Packaging
-Use appropriate padding and bubble wrap. Include IMEI or serial numbers for verification.
-
-Electronics sell faster when presented professionally and honestly.`,
-    author: "Seller Tips",
+    id: "start-ecommerce-business",
+    title: "How to Start an E-Commerce Business in Nepal",
+    excerpt: "Complete roadmap for entrepreneurs: from product selection to scaling your online store on Haat Nepal.",
+    category: "business",
+    author: "Business Desk",
+    date: "2026-08-11",
+    readTime: "10 min",
+    featured: true,
+  },
+  {
+    id: "fashion-trends-august",
+    title: "Fashion Trends This August: What's Hot in Nepal",
+    excerpt: "Discover the latest fashion trends that are dominating Nepal's marketplace. Style tips from local fashion experts.",
+    category: "consumer",
+    author: "Fashion Editor",
     date: "2026-08-10",
-    category: "Selling",
-    readTime: "4 min read",
+    readTime: "6 min",
     featured: false,
   },
   {
-    id: "nepal-marketplace-growth",
-    title: "Nepal's Online Marketplace is Growing - Here's Why",
-    excerpt: "E-commerce in Nepal is booming. Discover the trends driving marketplace growth and what it means for buyers and sellers.",
-    content: `Nepal's digital marketplace is experiencing unprecedented growth. Here are the key drivers:
-
-## Increased Internet Access
-More Nepali people have smartphones and internet access, making online shopping more accessible.
-
-## Convenience Factor
-Online shopping saves time and effort compared to traditional shopping methods.
-
-## Trust in Digital Payments
-eSewa and Khalti adoption has made online payments safer and more convenient for Nepalis.
-
-## Local Alternatives
-Platforms like Haat Nepal offer Nepal-specific features and support, preferred over foreign platforms.
-
-## Economic Opportunity
-Marketplace selling provides income opportunities for individuals and small businesses.
-
-The future of commerce in Nepal is digital. Haat Nepal is leading this transformation.`,
+    id: "safe-payment-methods",
+    title: "Safe Payment Methods on Haat Nepal",
+    excerpt: "Understanding eSewa, Khalti, and bank transfers. Which payment method is safest for you?",
+    category: "safety",
+    author: "Trust & Safety",
+    date: "2026-08-10",
+    readTime: "5 min",
+    featured: false,
+  },
+  {
+    id: "photography-tips-listings",
+    title: "Master Product Photography: Sell 50% More",
+    excerpt: "Professional tips for photographing products to attract buyers. Lighting, angles, and editing secrets.",
+    category: "selling-guides",
+    author: "Seller Experts",
+    date: "2026-08-09",
+    readTime: "8 min",
+    featured: false,
+  },
+  {
+    id: "real-estate-market-nepal",
+    title: "Nepal's Real Estate Market Boom: What Investors Should Know",
+    excerpt: "Analysis of property market trends in major cities. Price predictions and investment opportunities.",
+    category: "market-news",
     author: "Market Analysis",
     date: "2026-08-09",
-    category: "News",
-    readTime: "6 min read",
-    featured: true,
+    readTime: "9 min",
+    featured: false,
+  },
+  {
+    id: "negotiate-like-pro",
+    title: "Negotiation Skills: Get Better Deals Every Time",
+    excerpt: "Psychology-backed negotiation tips for buyers. How to get discounts and best prices on used items.",
+    category: "shopping-tips",
+    author: "Consumer Tips",
+    date: "2026-08-08",
+    readTime: "6 min",
+    featured: false,
+  },
+  {
+    id: "seller-monthly-income",
+    title: "Top Sellers Earning 100K+ Per Month - Their Strategies",
+    excerpt: "Real stories from successful Haat Nepal sellers. Learn their inventory management and customer service secrets.",
+    category: "business",
+    author: "Success Stories",
+    date: "2026-08-08",
+    readTime: "7 min",
+    featured: false,
   },
 ];
 
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+
 export default function BlogPage() {
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  const filteredArticles = selectedCategory
+    ? articles.filter((a) => a.category === selectedCategory)
+    : articles;
+
   const featuredArticles = articles.filter((a) => a.featured);
-  const recentArticles = articles.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const categoryColorMap = {
+    consumer: "blue",
+    business: "purple",
+    "shopping-tips": "emerald",
+    "selling-guides": "orange",
+    "market-news": "red",
+    safety: "amber",
+  };
+
+  const getCategoryColor = (category: string) => {
+    return categoryColorMap[category as keyof typeof categoryColorMap] || "slate";
+  };
+
+  const getCategoryIcon = (category: string) => {
+    const cat = categories.find((c) => c.id === category);
+    return cat?.icon || "📚";
+  };
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-orange-50 to-orange-100 py-12">
+      <div className="bg-gradient-to-r from-orange-600 via-orange-500 to-red-500 py-16 text-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h1 className="mb-4 text-4xl font-bold text-slate-900">Haat Nepal Blog</h1>
-          <p className="text-lg text-slate-600">News, tips, and insights for buyers and sellers on Nepal's marketplace</p>
+          <h1 className="mb-4 text-5xl font-black">Haat Nepal Blog</h1>
+          <p className="text-xl text-orange-50">Tips, trends, and stories from Nepal's #1 marketplace</p>
         </div>
       </div>
 
-      {/* Featured Articles */}
+      {/* Featured Articles Carousel */}
       {featuredArticles.length > 0 && (
-        <section className="border-b border-slate-200">
-          <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-            <h2 className="mb-8 text-2xl font-bold text-slate-900">Featured Articles</h2>
-            <div className="grid gap-8 md:grid-cols-2">
-              {featuredArticles.map((article) => (
-                <Link
-                  key={article.id}
-                  href={`/blog/${article.id}`}
-                  className="group overflow-hidden rounded-lg border border-slate-200 transition hover:shadow-lg"
-                >
-                  <div className="bg-gradient-to-br from-orange-100 to-orange-50 p-6">
-                    <div className="mb-3 flex items-center gap-2">
-                      <span className="inline-block rounded-full bg-orange-500 px-3 py-1 text-xs font-semibold text-white">
-                        {article.category}
-                      </span>
-                      <span className="text-xs text-slate-500">{article.date}</span>
+        <section className="border-b border-slate-200 bg-white py-12">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <h2 className="mb-8 text-3xl font-black text-slate-900">✨ Featured Stories</h2>
+            <div className="grid gap-6 lg:grid-cols-2">
+              {featuredArticles.map((article) => {
+                const color = getCategoryColor(article.category);
+                const colorClasses: Record<string, string> = {
+                  blue: "from-blue-500 to-blue-600",
+                  purple: "from-purple-500 to-purple-600",
+                  emerald: "from-emerald-500 to-emerald-600",
+                  orange: "from-orange-500 to-orange-600",
+                  red: "from-red-500 to-red-600",
+                  amber: "from-amber-500 to-amber-600",
+                  slate: "from-slate-500 to-slate-600",
+                };
+
+                return (
+                  <Link
+                    key={article.id}
+                    href={`/blog/${article.id}`}
+                    className="group overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-lg transition hover:shadow-2xl"
+                  >
+                    <div className={`bg-gradient-to-br ${colorClasses[color]} p-8 text-white`}>
+                      <div className="mb-4 flex items-center gap-3">
+                        <span className="text-3xl">{getCategoryIcon(article.category)}</span>
+                        <div>
+                          <p className="text-sm font-semibold opacity-90">
+                            {categories.find((c) => c.id === article.category)?.name}
+                          </p>
+                          <p className="text-xs opacity-75">{article.date}</p>
+                        </div>
+                      </div>
+                      <h3 className="mb-3 text-2xl font-black group-hover:underline">{article.title}</h3>
+                      <p className="mb-6 text-sm opacity-90">{article.excerpt}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold opacity-75">📖 {article.readTime}</span>
+                        <span className="text-lg transition group-hover:translate-x-2">→</span>
+                      </div>
                     </div>
-                    <h3 className="mb-2 text-xl font-bold text-slate-900 group-hover:text-orange-600">
-                      {article.title}
-                    </h3>
-                    <p className="mb-4 text-slate-600">{article.excerpt}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-500">{article.readTime}</span>
-                      <span className="text-orange-600 transition group-hover:translate-x-1">→</span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </section>
       )}
 
-      {/* All Articles */}
-      <section className="py-12">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h2 className="mb-8 text-2xl font-bold text-slate-900">Latest Articles</h2>
-          <div className="space-y-6">
-            {recentArticles.map((article) => (
-              <article
-                key={article.id}
-                className="flex gap-6 rounded-lg border border-slate-200 p-6 transition hover:shadow-md"
-              >
-                <div className="flex-1">
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className="inline-block rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
-                      {article.category}
-                    </span>
-                    <span className="text-xs text-slate-500">{article.date}</span>
-                    <span className="text-xs text-slate-500">•</span>
-                    <span className="text-xs text-slate-500">{article.readTime}</span>
-                  </div>
-                  <h3 className="mb-2 text-lg font-bold text-slate-900">
-                    <Link href={`/blog/${article.id}`} className="hover:text-orange-600">
-                      {article.title}
-                    </Link>
-                  </h3>
-                  <p className="mb-3 text-slate-600">{article.excerpt}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-500">By {article.author}</span>
-                    <Link href={`/blog/${article.id}`} className="text-orange-600 hover:text-orange-700">
-                      Read more →
-                    </Link>
-                  </div>
+      {/* Main Content Area */}
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="grid gap-8 lg:grid-cols-4">
+          {/* Sidebar - Categories */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-md">
+                <h3 className="mb-4 text-lg font-bold text-slate-900">Browse by Category</h3>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setSelectedCategory(null)}
+                    className={`block w-full rounded-lg px-4 py-3 text-left font-semibold transition ${
+                      selectedCategory === null
+                        ? "bg-orange-500 text-white"
+                        : "bg-slate-100 text-slate-900 hover:bg-slate-200"
+                    }`}
+                  >
+                    All Articles ({articles.length})
+                  </button>
+
+                  {categories.map((cat) => {
+                    const count = articles.filter((a) => a.category === cat.id).length;
+                    const isSelected = selectedCategory === cat.id;
+                    const colorBg = {
+                      blue: "bg-blue-50 hover:bg-blue-100",
+                      purple: "bg-purple-50 hover:bg-purple-100",
+                      emerald: "bg-emerald-50 hover:bg-emerald-100",
+                      orange: "bg-orange-50 hover:bg-orange-100",
+                      red: "bg-red-50 hover:bg-red-100",
+                      amber: "bg-amber-50 hover:bg-amber-100",
+                    };
+
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => setSelectedCategory(cat.id)}
+                        className={`block w-full rounded-lg px-4 py-3 text-left transition ${
+                          isSelected
+                            ? "border-2 border-orange-500 bg-orange-50 font-semibold text-orange-900"
+                            : `${colorBg[cat.color as keyof typeof colorBg]} font-medium text-slate-700`
+                        }`}
+                      >
+                        <span className="mr-2">{cat.icon}</span>
+                        {cat.name}
+                        <span className="ml-2 text-xs opacity-60">({count})</span>
+                      </button>
+                    );
+                  })}
                 </div>
-              </article>
-            ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Articles Grid */}
+          <div className="lg:col-span-3">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-slate-900">
+                {selectedCategory
+                  ? categories.find((c) => c.id === selectedCategory)?.name
+                  : "All Articles"}
+              </h2>
+              <span className="text-sm font-semibold text-slate-600">
+                {filteredArticles.length} article{filteredArticles.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+
+            <div className="space-y-6">
+              {filteredArticles.length > 0 ? (
+                filteredArticles.map((article) => {
+                  const color = getCategoryColor(article.category);
+                  const categoryColors: Record<string, string> = {
+                    blue: "text-blue-700 bg-blue-50 border-blue-200",
+                    purple: "text-purple-700 bg-purple-50 border-purple-200",
+                    emerald: "text-emerald-700 bg-emerald-50 border-emerald-200",
+                    orange: "text-orange-700 bg-orange-50 border-orange-200",
+                    red: "text-red-700 bg-red-50 border-red-200",
+                    amber: "text-amber-700 bg-amber-50 border-amber-200",
+                    slate: "text-slate-700 bg-slate-50 border-slate-200",
+                  };
+
+                  return (
+                    <Link
+                      key={article.id}
+                      href={`/blog/${article.id}`}
+                      className="group flex gap-6 rounded-xl border border-slate-200 bg-white p-6 transition hover:border-orange-300 hover:shadow-lg"
+                    >
+                      {/* Icon/Placeholder */}
+                      <div className="hidden flex-shrink-0 sm:block">
+                        <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 text-4xl">
+                          {getCategoryIcon(article.category)}
+                        </div>
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="mb-3 flex flex-wrap items-center gap-3">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 border text-xs font-semibold ${
+                              categoryColors[color] || categoryColors.slate
+                            }`}
+                          >
+                            {getCategoryIcon(article.category)}
+                            {categories.find((c) => c.id === article.category)?.name}
+                          </span>
+                          <span className="text-xs text-slate-500">📅 {article.date}</span>
+                          <span className="text-xs text-slate-500">📖 {article.readTime}</span>
+                        </div>
+
+                        <h3 className="mb-2 text-lg font-bold text-slate-900 group-hover:text-orange-600">
+                          {article.title}
+                        </h3>
+
+                        <p className="mb-4 line-clamp-2 text-slate-600">{article.excerpt}</p>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-slate-500">By {article.author}</span>
+                          <span className="text-orange-600 transition group-hover:translate-x-1">
+                            Read more →
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })
+              ) : (
+                <div className="rounded-lg border-2 border-dashed border-slate-300 p-12 text-center">
+                  <p className="text-slate-600">No articles in this category yet. Check back soon!</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </section>
+      </div>
 
       {/* Newsletter Signup */}
-      <section className="bg-orange-50 py-12">
+      <section className="border-t border-slate-200 bg-gradient-to-r from-orange-50 to-red-50 py-16">
         <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
-          <div className="rounded-lg bg-white p-8 text-center">
-            <h2 className="mb-2 text-2xl font-bold text-slate-900">Stay Updated</h2>
-            <p className="mb-6 text-slate-600">Subscribe to our newsletter for tips, marketplace news, and exclusive offers.</p>
+          <div className="rounded-2xl bg-white p-10 shadow-xl">
+            <h2 className="mb-2 text-3xl font-black text-slate-900">📬 Stay in the Loop</h2>
+            <p className="mb-8 text-slate-600">
+              Get the latest marketplace tips, seller strategies, and shopping hacks delivered to your inbox.
+            </p>
             <form className="flex flex-col gap-3 sm:flex-row sm:gap-2">
               <input
                 type="email"
                 placeholder="Enter your email"
-                className="flex-1 rounded-md border border-slate-300 px-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-orange-500 focus:outline-none"
+                className="flex-1 rounded-lg border-2 border-slate-300 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
               />
               <button
                 type="submit"
-                className="rounded-md bg-orange-600 px-6 py-2 font-semibold text-white hover:bg-orange-700"
+                className="rounded-lg bg-gradient-to-r from-orange-600 to-red-600 px-8 py-3 font-bold text-white transition hover:from-orange-700 hover:to-red-700"
               >
                 Subscribe
               </button>
             </form>
-            <p className="mt-3 text-xs text-slate-500">We respect your privacy. No spam, ever.</p>
+            <p className="mt-3 text-xs text-slate-500">✓ We respect your privacy. Unsubscribe anytime.</p>
           </div>
         </div>
       </section>
