@@ -142,7 +142,11 @@ export async function verifySignupCodeAction(
   });
 
   if (authError || !authData.user) {
-    console.error("Error creating auth user:", authError);
+    console.error("[AUTH] Error creating auth user:", {
+      error: authError,
+      message: authError?.message,
+      status: authError?.status,
+    });
     return {
       error: "Failed to create account. Please try again.",
       step: 'verify',
@@ -168,7 +172,12 @@ export async function verifySignupCodeAction(
     });
 
     if (profileError) {
-      console.error("Error creating profile:", profileError);
+      console.error("[AUTH] Error creating profile:", {
+        error: profileError,
+        message: profileError?.message,
+        code: profileError?.code,
+        details: profileError?.details,
+      });
       return {
         error: "Account created but profile setup failed. Please contact support.",
         step: 'verify',
