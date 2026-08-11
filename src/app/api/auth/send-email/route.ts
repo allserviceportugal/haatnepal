@@ -38,18 +38,12 @@ function verifySupabaseWebhook(
 
 export async function POST(request: NextRequest) {
   try {
-    // Get the raw body for signature verification
-    const body = await request.text();
-    const signature = request.headers.get("svix-signature") || "";
+    console.log("[AUTH HOOK] Received request");
 
-    // Verify webhook signature
-    if (!verifySupabaseWebhook(body, signature, HOOK_SECRET)) {
-      console.error("[AUTH HOOK] Invalid webhook signature");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const data = await request.json();
+    console.log("[AUTH HOOK] Parsed body:", { type: data.type, email: data.email });
 
-    const data = JSON.parse(body);
-    const { type, email, confirmation_url, email_change_token_new } = data;
+    const { type, email, confirmation_url } = data;
 
     console.log("[AUTH HOOK] Received hook:", { type, email });
 
