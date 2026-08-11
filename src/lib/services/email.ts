@@ -17,7 +17,7 @@ export async function sendConfirmationEmail(
     return { success: false, error: "Email service not configured" };
   }
 
-  const confirmUrl = `${APP_URL}/api/auth/confirm-email?token=${token}`;
+  const confirmUrl = `${APP_URL}/auth/confirm?token=${token}`;
 
   try {
     const response = await fetch("https://api.resend.com/emails", {
