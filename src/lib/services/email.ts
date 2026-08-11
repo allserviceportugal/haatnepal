@@ -1,19 +1,12 @@
-import { createClient } from "@/lib/supabase/server";
+import { Resend } from "resend";
 
-interface EmailOptions {
-  to: string;
-  subject: string;
-  html: string;
-}
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 /**
  * Send OTP verification email with haatnepal branding
  */
 export async function sendOtpEmail(email: string, code: string): Promise<boolean> {
   try {
-    // Using Supabase's built-in email service (configured in project settings)
-    // In production, you might use SendGrid, Resend, or similar
-
     const html = `
 <!DOCTYPE html>
 <html>
@@ -88,10 +81,19 @@ export async function sendOtpEmail(email: string, code: string): Promise<boolean
 </html>
     `;
 
-    // For now, log to console since Supabase email service requires additional setup
-    // In production, integrate with SendGrid, Resend, or configure Supabase Email Auth
-    console.log(`📧 OTP Email sent to ${email}: ${code}`);
+    const { error } = await resend.emails.send({
+      from: "noreply@haatnepal.com",
+      to: email,
+      subject: "Verify Your Haat Nepal Account - 6-Digit Code",
+      html,
+    });
 
+    if (error) {
+      console.error("Error sending OTP email via Resend:", error);
+      return false;
+    }
+
+    console.log(`📧 OTP Email sent to ${email}: ${code}`);
     return true;
   } catch (error) {
     console.error("Error sending OTP email:", error);
@@ -131,7 +133,7 @@ export async function sendWelcomeEmail(email: string, displayName: string): Prom
       <p>Your account has been successfully verified. You're now ready to start buying and selling on Haat Nepal!</p>
 
       <div style="text-align: center;">
-        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://haatnepal.com'}" class="cta">Go to Haat Nepal</a>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://haatnepal.shrill-sea-82d6.workers.dev'}" class="cta">Go to Haat Nepal</a>
       </div>
 
       <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
@@ -150,6 +152,18 @@ export async function sendWelcomeEmail(email: string, displayName: string): Prom
 </body>
 </html>
     `;
+
+    const { error } = await resend.emails.send({
+      from: "noreply@haatnepal.com",
+      to: email,
+      subject: "Welcome to Haat Nepal! 🎉",
+      html,
+    });
+
+    if (error) {
+      console.error("Error sending welcome email via Resend:", error);
+      return false;
+    }
 
     console.log(`📧 Welcome email sent to ${email}`);
     return true;
