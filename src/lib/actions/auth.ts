@@ -232,33 +232,13 @@ export async function verifySignupCodeAction(
 
   await markOtpCodeVerified(email, code);
 
-  // Sign in with temporary password to establish session
-  const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-    email,
-    password: randomPassword,
+  // Don't sign in yet - just go to password setting step
+  // The account is created and email is confirmed, user just needs to set their password
+  console.log("[AUTH SIGNUP] Account created and email confirmed. Ready for password setup.", {
+    userId: authData.user.id,
+    email: authData.user.email,
   });
 
-  if (signInError) {
-    console.error("[AUTH SIGNUP] Sign-in after verification FAILED:", {
-      error: signInError,
-      message: signInError?.message,
-      status: signInError?.status,
-      code: signInError?.code,
-      authDataUser: authData.user ? { id: authData.user.id, email: authData.user.email } : null,
-    });
-    return {
-      error: `Account created but login failed: ${signInError?.message || "unknown error"}. Please try signing in with your email.`,
-      step: 'verify',
-      email,
-    };
-  }
-
-  console.log("[AUTH SIGNUP] Sign-in successful:", {
-    userId: signInData.user?.id,
-    email: signInData.user?.email,
-  });
-
-  // Return to set-password step instead of redirecting
   return {
     step: 'set-password',
     mode: 'signup',
