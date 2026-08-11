@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { signUpAction } from "@/lib/actions/auth";
 
@@ -8,6 +8,8 @@ export function SignupForm({ next }: { next?: string }) {
   const [state, formAction, isPending] = useActionState(signUpAction, {
     step: 'email',
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Success state - show confirmation message
   if (state.success && state.step === 'success') {
@@ -64,6 +66,7 @@ export function SignupForm({ next }: { next?: string }) {
           minLength={2}
           maxLength={50}
           placeholder="Your name"
+          defaultValue={state.formValues?.displayName || ""}
           className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
         />
       </div>
@@ -75,33 +78,52 @@ export function SignupForm({ next }: { next?: string }) {
           name="email"
           required
           placeholder="you@example.com"
+          defaultValue={state.formValues?.email || ""}
           className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
         />
       </div>
 
       <div>
         <label className="block text-sm font-semibold text-slate-700">Password</label>
-        <input
-          type="password"
-          name="password"
-          required
-          minLength={8}
-          placeholder="At least 8 characters"
-          className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
-        />
+        <div className="relative mt-2">
+          <input
+            type={showPassword ? "text" : "password"}
+            name="password"
+            required
+            minLength={8}
+            placeholder="At least 8 characters"
+            className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-10 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+          >
+            {showPassword ? "Hide" : "Show"}
+          </button>
+        </div>
         <p className="mt-1 text-xs text-slate-500">Minimum 8 characters</p>
       </div>
 
       <div>
         <label className="block text-sm font-semibold text-slate-700">Confirm Password</label>
-        <input
-          type="password"
-          name="confirmPassword"
-          required
-          minLength={8}
-          placeholder="Repeat your password"
-          className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
-        />
+        <div className="relative mt-2">
+          <input
+            type={showConfirmPassword ? "text" : "password"}
+            name="confirmPassword"
+            required
+            minLength={8}
+            placeholder="Repeat your password"
+            className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-10 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+          />
+          <button
+            type="button"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+          >
+            {showConfirmPassword ? "Hide" : "Show"}
+          </button>
+        </div>
       </div>
 
       <div>
@@ -112,6 +134,7 @@ export function SignupForm({ next }: { next?: string }) {
           required
           inputMode="numeric"
           placeholder="98XXXXXXXX"
+          defaultValue={state.formValues?.phone || ""}
           className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
         />
         <p className="mt-1 text-xs text-slate-500">Used for seller contact. Compulsory.</p>
@@ -126,7 +149,7 @@ export function SignupForm({ next }: { next?: string }) {
                 type="radio"
                 name="accountType"
                 value="individual"
-                defaultChecked
+                defaultChecked={state.formValues?.accountType !== "business"}
                 className="h-4 w-4"
               />
               Individual
@@ -139,6 +162,7 @@ export function SignupForm({ next }: { next?: string }) {
                 type="radio"
                 name="accountType"
                 value="business"
+                defaultChecked={state.formValues?.accountType === "business"}
                 className="h-4 w-4"
               />
               Business

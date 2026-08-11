@@ -16,6 +16,12 @@ export type AuthActionState = {
   step?: 'email' | 'success';
   email?: string;
   success?: boolean;
+  formValues?: {
+    displayName?: string;
+    email?: string;
+    phone?: string;
+    accountType?: string;
+  };
 };
 
 const NOT_CONFIGURED_ERROR =
@@ -41,14 +47,20 @@ export async function signUpAction(
     accountType: formData.get("accountType"),
   });
 
+  const displayName = formData.get("displayName") as string;
+  const emailInput = formData.get("email") as string;
+  const phone = formData.get("phone") as string;
+  const accountType = formData.get("accountType") as string;
+
   if (!parsed.success) {
     return {
       error: parsed.error.issues[0]?.message ?? "Please check the form and try again.",
       step: 'email',
+      formValues: { displayName, email: emailInput, phone, accountType },
     };
   }
 
-  const { displayName, email, password, phone, accountType } = parsed.data;
+  const { email, password } = parsed.data;
   const supabase = await createClient();
 
   // Check if email or phone already exist
@@ -62,6 +74,7 @@ export async function signUpAction(
     return {
       error: "This email is already registered. Please log in instead.",
       step: 'email',
+      formValues: { displayName, email, phone, accountType },
     };
   }
 
@@ -75,6 +88,7 @@ export async function signUpAction(
     return {
       error: "This phone number is already registered. Please use a different number.",
       step: 'email',
+      formValues: { displayName, email, phone, accountType },
     };
   }
 
@@ -98,6 +112,7 @@ export async function signUpAction(
     return {
       error: `Failed to create account: ${authError?.message || "unknown error"}`,
       step: 'email',
+      formValues: { displayName, email, phone, accountType },
     };
   }
 
@@ -122,6 +137,7 @@ export async function signUpAction(
     return {
       error: `Profile creation failed: ${profileError?.message || "unknown error"}`,
       step: 'email',
+      formValues: { displayName, email, phone, accountType },
     };
   }
 
