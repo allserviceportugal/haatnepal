@@ -1,19 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 
-const HOOK_SECRET = process.env.SUPABASE_HOOK_SECRET || "your-secret-key-here";
+const HOOK_SECRET = process.env.SUPABASE_HOOK_SECRET || "";
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
+
+function verifySupabaseWebhook(
+  body: string,
+  signature: string,
+  secret: string
+): boolean {
+  if (!secret) {
+    console.warn("[AUTH HOOK] No SUPABASE_HOOK_SECRET configured, skipping verification");
+    return true; // Allow if no secret configured (for local testing)
+  }
+
+  try {
+    // Extract the base secret from v1,whsec_... format
+    const secretParts = secret.split(",");
+    if (secretParts.length !== 2) {
+      console.error("[AUTH HOOK] Invalid secret format");
+      return false;
+    }
+
+    const baseSecret = secretParts[1];
+    const decodedSecret = Buffer.from(baseSecret, "base64");
+
+    // Verify using HMAC
+    const hmac = crypto.createHmac("sha256", decodedSecret);
+    const computed = hmac.update(body).digest("base64");
+
+    return signature === `v1,${computed}`;
+  } catch (error) {
+    console.error("[AUTH HOOK] Verification error:", error);
+    return false;
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify the secret
-    const secret = request.headers.get("x-webhook-signature");
-    if (secret !== HOOK_SECRET) {
-      console.error("[AUTH HOOK] Invalid secret");
+    // Get the raw body for signature verification
+    const body = await request.text();
+    const signature = request.headers.get("svix-signature") || "";
+
+    // Verify webhook signature
+    if (!verifySupabaseWebhook(body, signature, HOOK_SECRET)) {
+      console.error("[AUTH HOOK] Invalid webhook signature");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { type, email, confirmation_url, email_change_token_new } = body;
+    const data = JSON.parse(body);
+    const { type, email, confirmation_url, email_change_token_new } = data;
 
     console.log("[AUTH HOOK] Received hook:", { type, email });
 
