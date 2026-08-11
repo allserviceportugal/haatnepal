@@ -126,9 +126,10 @@ export async function verifyCodeAction(
 
   // Create Supabase user
   const supabase = await createClient();
+  const randomPassword = Math.random().toString(36).slice(-20);
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
-    password: Math.random().toString(36).slice(-20), // Random password (user will use OTP to login)
+    password: randomPassword,
     options: {
       data: {
         display_name: metadata.display_name,
@@ -180,11 +181,20 @@ export async function verifyCodeAction(
   // Send welcome email
   await sendWelcomeEmail(email, metadata.display_name);
 
-  // Sign in the user
-  await supabase.auth.signInWithPassword({
+  // Sign in the user with the generated password
+  const { error: signInError } = await supabase.auth.signInWithPassword({
     email,
-    password: authData.user.user_metadata?.password || "",
+    password: randomPassword,
   });
+
+  if (signInError) {
+    console.error("Error signing in after verification:", signInError);
+    return {
+      error: "Account created but login failed. Please try signing in.",
+      step: 'verify',
+      email,
+    };
+  }
 
   const nextPath = formData.get("next");
   redirect(typeof nextPath === "string" && nextPath.startsWith("/") ? nextPath : "/");
