@@ -9,7 +9,7 @@ import {
   signUpSchema,
   loginSchema,
 } from "@/lib/validations/auth";
-import { sendConfirmationEmail } from "@/lib/services/email";
+import { sendWelcomeEmail } from "@/lib/services/email";
 import { isDisposableEmail } from "@/lib/utils/spam-protection";
 
 export type AuthActionState = {
@@ -155,24 +155,36 @@ export async function signUpAction(
   console.log("[SIGNUP] Profile created, sending welcome email...");
 
   // Send welcome email via Resend
-  console.log("[SIGNUP] Sending welcome email...");
-  const emailResult = await sendConfirmationEmail(email, displayName, "");
+  const emailResult = await sendWelcomeEmail(email, displayName);
 
   if (!emailResult.success) {
     console.error("[SIGNUP] Email sending failed:", emailResult.error);
     return {
-      error: `Failed to send confirmation email: ${emailResult.error}`,
+      error: `Failed to send welcome email: ${emailResult.error}`,
       step: 'email',
     };
   }
 
-  console.log("[SIGNUP] Account created and confirmation email sent");
+  console.log("[SIGNUP] Account created, email confirmed, and welcome email sent");
 
-  return {
-    success: true,
-    step: 'success',
-    email,
-  };
+  // Sign in the new user immediately
+  try {
+    const supabase = await createClient();
+    await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    // Redirect to home
+    redirect("/");
+  } catch (error) {
+    console.error("[SIGNUP] Auto-signin failed:", error);
+    return {
+      success: true,
+      step: 'success',
+      email,
+    };
+  }
 }
 
 /**
