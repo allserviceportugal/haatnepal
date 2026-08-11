@@ -1,0 +1,34 @@
+# Haat Nepal Robots.txt
+# Search engine crawler instructions
+
+User-agent: *
+Allow: /
+Allow: /blog
+Allow: /c/
+Disallow: /admin
+Disallow: /api/
+Disallow: /.well-known
+Disallow: /dashboard
+Disallow: /auth
+
+# Sitemaps
+Sitemap: https://haatnepal.com/sitemap.xml
+
+# Crawl delay for bots
+Crawl-delay: 0
+
+# Specific rules for popular bots
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# Block bad bots
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
