@@ -177,3 +177,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 }
+
+// Note: External partner links (cargosender.com, flightsinsight.com, voydly.com)
+// are NOT included in sitemap as Google only allows URLs from your own domain.
+// These are included as backlinks in the footer for SEO purposes instead.
