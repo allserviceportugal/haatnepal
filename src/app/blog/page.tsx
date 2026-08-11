@@ -97,6 +97,9 @@ const articles = [
 
 export default function BlogPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [subscribeStatus, setSubscribeStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [subscribeMessage, setSubscribeMessage] = useState("");
 
   const filteredArticles = selectedCategory
     ? articles.filter((a) => a.category === selectedCategory)
@@ -323,19 +326,64 @@ export default function BlogPage() {
             <p className="mb-8 text-slate-600">
               Get the latest marketplace tips, seller strategies, and shopping hacks delivered to your inbox.
             </p>
-            <form className="flex flex-col gap-3 sm:flex-row sm:gap-2">
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!email) return;
+
+                setSubscribeStatus("loading");
+                try {
+                  const response = await fetch("/api/newsletter/subscribe", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email }),
+                  });
+
+                  const data = await response.json();
+
+                  if (response.ok) {
+                    setSubscribeStatus("success");
+                    setSubscribeMessage("✓ Successfully subscribed! Check your email.");
+                    setEmail("");
+                    setTimeout(() => setSubscribeStatus("idle"), 5000);
+                  } else {
+                    setSubscribeStatus("error");
+                    setSubscribeMessage(data.error || "Failed to subscribe. Try again!");
+                    setTimeout(() => setSubscribeStatus("idle"), 5000);
+                  }
+                } catch (error) {
+                  setSubscribeStatus("error");
+                  setSubscribeMessage("Something went wrong. Please try again!");
+                  setTimeout(() => setSubscribeStatus("idle"), 5000);
+                }
+              }}
+              className="flex flex-col gap-3 sm:flex-row sm:gap-2"
+            >
               <input
                 type="email"
                 placeholder="Enter your email"
-                className="flex-1 rounded-lg border-2 border-slate-300 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={subscribeStatus === "loading"}
+                className="flex-1 rounded-lg border-2 border-slate-300 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200 disabled:bg-slate-100"
               />
               <button
                 type="submit"
-                className="rounded-lg bg-gradient-to-r from-orange-600 to-red-600 px-8 py-3 font-bold text-white transition hover:from-orange-700 hover:to-red-700"
+                disabled={subscribeStatus === "loading" || !email}
+                className="rounded-lg bg-gradient-to-r from-orange-600 to-red-600 px-8 py-3 font-bold text-white transition hover:from-orange-700 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Subscribe
+                {subscribeStatus === "loading" ? "Subscribing..." : "Subscribe"}
               </button>
             </form>
+            {subscribeMessage && (
+              <p
+                className={`mt-3 text-sm font-semibold ${
+                  subscribeStatus === "success" ? "text-emerald-600" : "text-red-600"
+                }`}
+              >
+                {subscribeMessage}
+              </p>
+            )}
             <p className="mt-3 text-xs text-slate-500">✓ We respect your privacy. Unsubscribe anytime.</p>
           </div>
         </div>
