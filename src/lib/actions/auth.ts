@@ -27,8 +27,7 @@ const NOT_CONFIGURED_ERROR =
   "Supabase isn't configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local.";
 
 /**
- * SIGNUP: Generate and send 6-digit OTP to email
- * Email + Name + Phone + Account Type
+ * SIGNUP: Collect all info (email, password, name, phone, account type) and send OTP
  */
 export async function signUpAction(
   _prevState: AuthActionState,
@@ -41,6 +40,8 @@ export async function signUpAction(
   const parsed = signUpSchema.safeParse({
     displayName: formData.get("displayName"),
     email: formData.get("email"),
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
     phone: formData.get("phone"),
     accountType: formData.get("accountType"),
   });
@@ -52,12 +53,42 @@ export async function signUpAction(
     };
   }
 
-  const { displayName, email, phone, accountType } = parsed.data;
+  const { displayName, email, password, phone, accountType } = parsed.data;
+  const supabase = await createClient();
 
+  // Check if email or phone already exist
+  const { data: existingEmail } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("email", email)
+    .single();
+
+  if (existingEmail) {
+    return {
+      error: "This email is already registered. Please log in instead.",
+      step: 'email',
+    };
+  }
+
+  const { data: existingPhone } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("phone", phone)
+    .single();
+
+  if (existingPhone) {
+    return {
+      error: "This phone number is already registered. Please use a different number.",
+      step: 'email',
+    };
+  }
+
+  // Generate and send OTP
   const { code, error: otpError } = await createOtpCode(email, {
     display_name: displayName,
     phone,
     account_type: accountType as "individual" | "business",
+    password, // Store password in OTP metadata for later use
   });
 
   if (otpError || !code) {
@@ -83,8 +114,7 @@ export async function signUpAction(
 }
 
 /**
- * VERIFY SIGNUP CODE: User enters 6-digit code from email during signup
- * Creates account and signs in temporarily, then prompts to set password
+ * VERIFY SIGNUP CODE: Create account with user's password and auto-login
  */
 export async function verifySignupCodeAction(
   _prevState: AuthActionState,
@@ -119,7 +149,7 @@ export async function verifySignupCodeAction(
     };
   }
 
-  if (!metadata) {
+  if (!metadata || !metadata.password) {
     return {
       error: "Verification failed. Please try again.",
       step: 'verify',
@@ -128,40 +158,13 @@ export async function verifySignupCodeAction(
   }
 
   const supabase = await createClient();
+  const admin = createAdminClient();
+  const { password } = metadata;
 
-  // Check if phone number is already registered
-  const { data: existingPhone } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("phone", metadata.phone)
-    .single();
-
-  if (existingPhone) {
-    return {
-      error: "This phone number is already registered. Please use a different number.",
-      step: 'verify',
-      email,
-    };
-  }
-
-  // Check if email is already registered
-  const { data: existingEmail } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("email", email)
-    .single();
-
-  if (existingEmail) {
-    return {
-      error: "This email is already registered. Please use a different email or log in.",
-      step: 'verify',
-      email,
-    };
-  }
-  const randomPassword = Math.random().toString(36).slice(-20);
+  // Create Supabase auth user with user's password
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
-    password: randomPassword,
+    password,
     options: {
       data: {
         display_name: metadata.display_name,
@@ -172,11 +175,7 @@ export async function verifySignupCodeAction(
   });
 
   if (authError || !authData.user) {
-    console.error("[AUTH] Error creating auth user:", {
-      error: authError,
-      message: authError?.message,
-      status: authError?.status,
-    });
+    console.error("[AUTH] Error creating auth user:", authError);
     return {
       error: "Failed to create account. Please try again.",
       step: 'verify',
@@ -184,20 +183,17 @@ export async function verifySignupCodeAction(
     };
   }
 
-  // Auto-confirm user email since they verified via OTP
-  const admin = createAdminClient();
+  // Auto-confirm email since they verified via OTP
   const { error: confirmError } = await admin.auth.admin.updateUserById(
     authData.user.id,
     { email_confirm: true }
   );
 
   if (confirmError) {
-    console.warn("[AUTH] Warning: Could not auto-confirm user email:", confirmError);
-    // Continue anyway - they can still proceed
-  } else {
-    console.log("[AUTH] User email auto-confirmed after OTP verification");
+    console.warn("[AUTH] Could not auto-confirm email:", confirmError);
   }
 
+  // Create profile
   const { data: existingProfile } = await supabase
     .from("profiles")
     .select("id")
@@ -212,16 +208,11 @@ export async function verifySignupCodeAction(
       phone: metadata.phone,
       account_type: metadata.account_type,
       phone_verified: false,
-      password_set: false,
+      password_set: true, // Password was set at signup
     });
 
     if (profileError) {
-      console.error("[AUTH] Error creating profile:", {
-        error: profileError,
-        message: profileError?.message,
-        code: profileError?.code,
-        details: profileError?.details,
-      });
+      console.error("[AUTH] Error creating profile:", profileError);
       return {
         error: "Account created but profile setup failed. Please contact support.",
         step: 'verify',
@@ -230,203 +221,34 @@ export async function verifySignupCodeAction(
     }
   }
 
+  // Mark OTP as verified
   await markOtpCodeVerified(email, code);
 
-  // Don't sign in yet - just go to password setting step
-  // The account is created and email is confirmed, user just needs to set their password
-  console.log("[AUTH SIGNUP] Account created and email confirmed. Ready for password setup.", {
-    userId: authData.user.id,
-    email: authData.user.email,
-  });
-
-  return {
-    step: 'set-password',
-    mode: 'signup',
+  // Sign in user with their password
+  const { error: signInError } = await supabase.auth.signInWithPassword({
     email,
-  };
-}
-
-/**
- * SET PASSWORD: User sets their password after signup or password reset
- */
-export async function setPasswordAction(
-  _prevState: AuthActionState,
-  formData: FormData
-): Promise<AuthActionState> {
-  if (!isSupabaseConfigured()) {
-    return { error: NOT_CONFIGURED_ERROR };
-  }
-
-  const parsed = setPasswordSchema.safeParse({
-    password: formData.get("password"),
-    confirmPassword: formData.get("confirmPassword"),
+    password,
   });
 
-  if (!parsed.success) {
-    const email = formData.get("email") as string;
-    const mode = formData.get("mode") as string;
+  if (signInError) {
+    console.error("[AUTH] Error signing in after signup:", signInError);
     return {
-      error: parsed.error.issues[0]?.message ?? "Please check the form and try again.",
-      step: 'set-password',
-      mode: mode as 'signup' | 'reset',
+      error: "Account created but login failed. Please try signing in.",
+      step: 'verify',
       email,
     };
   }
 
-  const { password } = parsed.data;
-  const email = formData.get("email") as string;
-  const mode = formData.get("mode") as string;
-  const rememberMe = formData.get("rememberMe") === "on";
-  const next = formData.get("next") as string | null;
+  // Send welcome email
+  await sendWelcomeEmail(email, metadata.display_name);
 
-  if (!email || !mode) {
-    return {
-      error: "Invalid request. Please try again.",
-      step: 'set-password',
-    };
-  }
-
-  if (mode === 'signup') {
-    // Signup flow: user has an active session from verifySignupCodeAction
-    try {
-      const supabase = await createClient();
-
-      // Update the password in the current session
-      const { error: updateError } = await supabase.auth.updateUser({
-        password,
-      });
-
-      if (updateError) {
-        console.error("[AUTH] Error updating password (signup):", updateError);
-        return {
-          error: "Failed to set password. Please try again.",
-          step: 'set-password',
-          mode: 'signup',
-          email,
-        };
-      }
-
-      // Mark password as set in profile
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ password_set: true })
-        .eq("email", email);
-
-      if (profileError) {
-        console.error("[AUTH] Error updating profile (signup):", profileError);
-        return {
-          error: "Password set but profile update failed. Please contact support.",
-          step: 'set-password',
-          mode: 'signup',
-          email,
-        };
-      }
-
-      // Send welcome email
-      await sendWelcomeEmail(email, formData.get("displayName") as string ?? "User");
-
-      // Session is already active from verifySignupCodeAction, just redirect
-      const nextPath = next && typeof next === "string" && next.startsWith("/") ? next : "/";
-      redirect(nextPath);
-    } catch (error) {
-      console.error("[AUTH] Error in set password (signup):", error);
-      return {
-        error: "An error occurred. Please try again.",
-        step: 'set-password',
-        mode: 'signup',
-        email,
-      };
-    }
-  } else if (mode === 'reset') {
-    // Reset flow: user has no active session, need admin client
-    try {
-      const supabase = await createClient({ rememberMe });
-      const admin = createAdminClient();
-
-      // Look up the user by email to get their ID
-      const { data: profile, error: profileLookupError } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", email)
-        .single();
-
-      if (profileLookupError || !profile) {
-        return {
-          error: "User not found. Please try again.",
-          step: 'set-password',
-          mode: 'reset',
-          email,
-        };
-      }
-
-      // Use admin client to update password
-      const { error: adminError } = await admin.auth.admin.updateUserById(profile.id, {
-        password,
-      });
-
-      if (adminError) {
-        console.error("Error updating password via admin:", adminError);
-        return {
-          error: "Failed to set password. Please try again.",
-          step: 'set-password',
-          mode: 'reset',
-          email,
-        };
-      }
-
-      // Update profile to mark password as set
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ password_set: true })
-        .eq("email", email);
-
-      if (profileError) {
-        console.error("Error updating profile:", profileError);
-        return {
-          error: "Password set but profile update failed. Please contact support.",
-          step: 'set-password',
-          mode: 'reset',
-          email,
-        };
-      }
-
-      // Sign in the user with their new password to establish session
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        console.error("Error signing in after password reset:", signInError);
-        return {
-          error: "Password updated but login failed. Please try logging in.",
-          step: 'set-password',
-          mode: 'reset',
-          email,
-        };
-      }
-
-      const nextPath = next && typeof next === "string" && next.startsWith("/") ? next : "/";
-      redirect(nextPath);
-    } catch (error) {
-      console.error("Error in set password (reset):", error);
-      return {
-        error: "An error occurred. Please try again.",
-        step: 'set-password',
-        mode: 'reset',
-        email,
-      };
-    }
-  }
-
-  return {
-    error: "Invalid mode. Please try again.",
-    step: 'set-password',
-  };
+  // Redirect to home or next page
+  const nextPath = formData.get("next");
+  redirect(typeof nextPath === "string" && nextPath.startsWith("/") ? nextPath : "/");
 }
 
 /**
- * LOGIN: Email + Password login (not OTP-based)
+ * LOGIN: Email + Password login
  */
 export async function loginAction(
   _prevState: AuthActionState,
@@ -444,7 +266,7 @@ export async function loginAction(
 
   if (!parsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? "Invalid email or password.",
+      error: "Invalid email or password.",
       step: 'email',
     };
   }
@@ -460,7 +282,7 @@ export async function loginAction(
     });
 
     if (signInError) {
-      console.error("Login error:", signInError);
+      console.error("[AUTH] Login error:", signInError);
       return {
         error: "Invalid email or password.",
         step: 'email',
@@ -470,7 +292,7 @@ export async function loginAction(
     const nextPath = next && typeof next === "string" && next.startsWith("/") ? next : "/";
     redirect(nextPath);
   } catch (error) {
-    console.error("Error during login:", error);
+    console.error("[AUTH] Error during login:", error);
     return {
       error: "An error occurred. Please try again.",
       step: 'email',
@@ -479,7 +301,7 @@ export async function loginAction(
 }
 
 /**
- * FORGOT PASSWORD: Send OTP to email for password reset
+ * FORGOT PASSWORD: Send OTP to email
  */
 export async function forgotPasswordAction(
   _prevState: AuthActionState,
@@ -543,7 +365,7 @@ export async function forgotPasswordAction(
 }
 
 /**
- * VERIFY RESET CODE: User enters 6-digit code during password reset
+ * VERIFY RESET CODE: User verifies OTP for password reset
  */
 export async function verifyResetCodeAction(
   _prevState: AuthActionState,
@@ -588,7 +410,107 @@ export async function verifyResetCodeAction(
 }
 
 /**
- * RESEND CODE: User didn't receive code (used by both signup and password reset)
+ * SET PASSWORD: For password reset flow only
+ */
+export async function setPasswordAction(
+  _prevState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: NOT_CONFIGURED_ERROR };
+  }
+
+  const parsed = setPasswordSchema.safeParse({
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+
+  if (!parsed.success) {
+    const email = formData.get("email") as string;
+    return {
+      error: parsed.error.issues[0]?.message ?? "Please check the form and try again.",
+      step: 'set-password',
+      mode: 'reset',
+      email,
+    };
+  }
+
+  const { password } = parsed.data;
+  const email = formData.get("email") as string;
+  const rememberMe = formData.get("rememberMe") === "on";
+  const next = formData.get("next") as string | null;
+
+  if (!email) {
+    return { error: "Invalid request. Please try again.", step: 'set-password' };
+  }
+
+  try {
+    const supabase = await createClient({ rememberMe });
+    const admin = createAdminClient();
+
+    // Look up user by email
+    const { data: profile, error: profileLookupError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", email)
+      .single();
+
+    if (profileLookupError || !profile) {
+      return {
+        error: "User not found. Please try again.",
+        step: 'set-password',
+        mode: 'reset',
+        email,
+      };
+    }
+
+    // Update password using admin API
+    const { error: adminError } = await admin.auth.admin.updateUserById(
+      profile.id,
+      { password }
+    );
+
+    if (adminError) {
+      console.error("[AUTH] Error updating password:", adminError);
+      return {
+        error: "Failed to set password. Please try again.",
+        step: 'set-password',
+        mode: 'reset',
+        email,
+      };
+    }
+
+    // Sign in with new password
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      console.error("[AUTH] Error signing in after password reset:", signInError);
+      return {
+        error: "Password updated but login failed. Please try logging in.",
+        step: 'set-password',
+        mode: 'reset',
+        email,
+      };
+    }
+
+    const nextPath = next && typeof next === "string" && next.startsWith("/") ? next : "/";
+    redirect(nextPath);
+  } catch (error) {
+    console.error("[AUTH] Error in set password:", error);
+    return {
+      error: "An error occurred. Please try again.",
+      step: 'set-password',
+      mode: 'reset',
+      email,
+    };
+  }
+}
+
+/**
+ * RESEND CODE: User didn't receive code
  */
 export async function resendCodeAction(
   _prevState: AuthActionState,

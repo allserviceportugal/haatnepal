@@ -16,6 +16,7 @@ export async function createOtpCode(
     display_name: string;
     phone: string;
     account_type: "individual" | "business";
+    password?: string;
   }
 ): Promise<{ code: string; error?: string }> {
   try {
@@ -48,7 +49,7 @@ export async function checkOtpCode(
   code: string
 ): Promise<{
   valid: boolean;
-  metadata?: { display_name: string; phone: string; account_type: string };
+  metadata?: { display_name: string; phone: string; account_type: string; password?: string };
   error?: string;
 }> {
   try {

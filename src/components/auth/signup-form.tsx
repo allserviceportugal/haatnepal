@@ -4,15 +4,14 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { signUpAction, verifySignupCodeAction } from "@/lib/actions/auth";
 import { VerifyCodeForm } from "./verify-code-form";
-import { SetPasswordForm } from "./set-password-form";
 
 export function SignupForm({ next }: { next?: string }) {
   const [state, formAction, isPending] = useActionState(signUpAction, {
     step: 'email',
   });
 
-  // Step 1: Email + Name + Phone + Account Type
-  if (state.step !== 'verify' && state.step !== 'set-password' && !state.codeSent) {
+  // Step 1: Email + Password + Name + Phone + Account Type
+  if (state.step !== 'verify' && !state.codeSent) {
     return (
       <form action={formAction} className="space-y-5">
         {next && <input type="hidden" name="next" value={next} />}
@@ -47,6 +46,31 @@ export function SignupForm({ next }: { next?: string }) {
         </div>
 
         <div>
+          <label className="block text-sm font-semibold text-slate-700">Password</label>
+          <input
+            type="password"
+            name="password"
+            required
+            minLength={8}
+            placeholder="At least 8 characters"
+            className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+          />
+          <p className="mt-1 text-xs text-slate-500">Must be at least 8 characters</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-700">Confirm Password</label>
+          <input
+            type="password"
+            name="confirmPassword"
+            required
+            minLength={8}
+            placeholder="Repeat your password"
+            className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+          />
+        </div>
+
+        <div>
           <label className="block text-sm font-semibold text-slate-700">Phone Number</label>
           <input
             type="tel"
@@ -56,9 +80,7 @@ export function SignupForm({ next }: { next?: string }) {
             placeholder="98XXXXXXXX"
             className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
           />
-          <p className="mt-1 text-xs text-slate-500">
-            Used for seller contact on classified listings. Compulsory.
-          </p>
+          <p className="mt-1 text-xs text-slate-500">Used for seller contact. Compulsory.</p>
         </div>
 
         <div>
@@ -131,27 +153,6 @@ export function SignupForm({ next }: { next?: string }) {
           action={verifySignupCodeAction}
           actionName="verifySignupCodeAction"
           next={next}
-        />
-      </div>
-    );
-  }
-
-  // Step 3: Set Password
-  if (state.step === 'set-password' && state.mode === 'signup') {
-    return (
-      <div className="space-y-5">
-        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-800">
-          <p className="font-semibold">Almost there!</p>
-          <p className="mt-2">
-            Create a password to secure your account
-          </p>
-        </div>
-
-        <SetPasswordForm
-          email={state.email || ""}
-          mode="signup"
-          next={next}
-          showRememberMe={false}
         />
       </div>
     );
