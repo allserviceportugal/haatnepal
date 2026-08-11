@@ -81,23 +81,13 @@ export function SiteFooter() {
               <li><Link href="/advertise" className="text-slate-600 hover:text-orange-600">Advertise</Link></li>
             </ul>
           </div>
-
-          {/* Partners */}
-          <div>
-            <h3 className="font-bold uppercase tracking-wider text-slate-900">Partners</h3>
-            <ul className="mt-3 space-y-2 text-sm">
-              <li><a href="https://cargosender.com" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-orange-600">CargoSender</a></li>
-              <li><a href="https://flightsinsight.com" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-orange-600">FlightsInsight</a></li>
-              <li><a href="https://voydly.com" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-orange-600">Voydly</a></li>
-            </ul>
-          </div>
         </div>
 
         {/* Divider */}
         <div className="border-t border-slate-200"></div>
 
-        {/* Contact Section */}
-        <div className="mt-8 grid gap-6 sm:grid-cols-3">
+        {/* Contact & Partners Section */}
+        <div className="mt-8 grid gap-6 sm:grid-cols-4">
           <div>
             <h4 className="font-semibold text-slate-900">📧 Email</h4>
             <p className="mt-1">
@@ -120,6 +110,14 @@ export function SiteFooter() {
             <h4 className="font-semibold text-slate-900">📍 Location</h4>
             <p className="mt-1 text-sm text-slate-600">Kathmandu, Nepal</p>
             <p className="mt-1 text-xs text-slate-600">Serving all of Nepal</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-slate-900">🤝 Partners</h4>
+            <ul className="mt-2 space-y-1 text-sm">
+              <li><a href="https://cargosender.com" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-orange-600">CargoSender</a></li>
+              <li><a href="https://flightsinsight.com" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-orange-600">FlightsInsight</a></li>
+              <li><a href="https://voydly.com" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-orange-600">Voydly</a></li>
+            </ul>
           </div>
         </div>
 
