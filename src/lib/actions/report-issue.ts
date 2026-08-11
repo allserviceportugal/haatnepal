@@ -1,7 +1,6 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import nodemailer from "nodemailer";
 
 type ReportState = {
   success?: boolean;
@@ -48,37 +47,46 @@ Report submitted at: ${new Date().toISOString()}
 Listing URL: https://haatnepal.com/listing/${listingId}
     `.trim();
 
-    // Send email using nodemailer
-    // Note: You'll need to configure SMTP credentials in environment variables
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || "587"),
-      secure: process.env.SMTP_SECURE === "true",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
+    // Send email using Resend API
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.error("RESEND_API_KEY is not set");
+      return { error: "Email service is not configured. Please try again later." };
+    }
+
+    const htmlContent = `
+      <h2>New Listing Report</h2>
+      <p><strong>Listing:</strong> ${listingTitle}</p>
+      <p><strong>ID:</strong> ${listingId}</p>
+      <p><strong>Seller:</strong> ${sellerName}</p>
+      <p><strong>Issue Type:</strong> ${issueType.replace(/-/g, " ")}</p>
+      <p><strong>Reporter:</strong> ${user?.email || "Anonymous"}</p>
+      <h3>Details:</h3>
+      <p>${message.replace(/\n/g, "<br>")}</p>
+      <hr>
+      <p><small>Submitted: ${new Date().toISOString()}</small></p>
+      <p><a href="https://haatnepal.pages.dev/listing/${listingId}">View Listing</a></p>
+    `;
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        from: "support@noreply.haatnepal.com",
+        to: "hello@haatnepal.com",
+        subject: `[REPORT] ${issueType.replace(/-/g, " ")} - ${listingTitle}`,
+        html: htmlContent,
+      }),
     });
 
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
-      to: "hello@haatnepal.com",
-      subject: `[REPORT] ${issueType.replace(/-/g, " ")} - ${listingTitle}`,
-      text: emailContent,
-      html: `
-        <h2>New Listing Report</h2>
-        <p><strong>Listing:</strong> ${listingTitle}</p>
-        <p><strong>ID:</strong> ${listingId}</p>
-        <p><strong>Seller:</strong> ${sellerName}</p>
-        <p><strong>Issue Type:</strong> ${issueType.replace(/-/g, " ")}</p>
-        <p><strong>Reporter:</strong> ${user?.email || "Anonymous"}</p>
-        <h3>Details:</h3>
-        <p>${message.replace(/\n/g, "<br>")}</p>
-        <hr>
-        <p><small>Submitted: ${new Date().toISOString()}</small></p>
-        <p><a href="https://haatnepal.com/listing/${listingId}">View Listing</a></p>
-      `,
-    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Resend API error:", errorData);
+      return { error: "Failed to send report. Please try again later." };
+    }
 
     // Optionally: Save report to database
     await supabase.from("listing_reports").insert({
