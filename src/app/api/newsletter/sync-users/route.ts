@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { verifyAdminApiKey, createUnauthorizedResponse, checkRateLimit, createRateLimitedResponse } from "@/lib/api-security";
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify admin API key
+    if (!verifyAdminApiKey(request)) {
+      return createUnauthorizedResponse();
+    }
+
+    // Rate limiting (max 1 per hour)
+    const clientIp = request.headers.get("x-forwarded-for") || "unknown";
+    if (!checkRateLimit(`sync-users-${clientIp}`, 1, 3600000)) {
+      return createRateLimitedResponse();
+    }
+
     const supabase = await createClient();
 
     // Get all auth users

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createWeeklyDigestEmail } from "@/lib/newsletter";
+import { verifyAdminApiKey, createUnauthorizedResponse, checkRateLimit, createRateLimitedResponse } from "@/lib/api-security";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
@@ -12,6 +13,17 @@ interface WeeklyDigestRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify admin API key
+    if (!verifyAdminApiKey(request)) {
+      return createUnauthorizedResponse();
+    }
+
+    // Rate limiting (max 2 per day)
+    const clientIp = request.headers.get("x-forwarded-for") || "unknown";
+    if (!checkRateLimit(`weekly-digest-${clientIp}`, 2, 86400000)) {
+      return createRateLimitedResponse();
+    }
+
     const body: WeeklyDigestRequest = await request.json();
 
     if (!body.topArticles || !body.featuredListings || !body.topSeller) {

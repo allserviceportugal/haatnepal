@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createBlogNewsletterEmail } from "@/lib/newsletter";
+import { verifyAdminApiKey, createUnauthorizedResponse, checkRateLimit, createRateLimitedResponse, sanitizeInput } from "@/lib/api-security";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
@@ -15,6 +16,17 @@ interface BlogNotificationRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify admin API key
+    if (!verifyAdminApiKey(request)) {
+      return createUnauthorizedResponse();
+    }
+
+    // Rate limiting
+    const clientIp = request.headers.get("x-forwarded-for") || "unknown";
+    if (!checkRateLimit(`blog-newsletter-${clientIp}`, 5, 3600000)) {
+      return createRateLimitedResponse();
+    }
+
     const body: BlogNotificationRequest = await request.json();
 
     if (!body.title || !body.excerpt || !body.blogUrl) {

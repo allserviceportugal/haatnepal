@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { verifyAdminApiKey, createUnauthorizedResponse, checkRateLimit, createRateLimitedResponse } from "@/lib/api-security";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
@@ -9,6 +10,17 @@ interface FeaturedListingsRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify admin API key
+    if (!verifyAdminApiKey(request)) {
+      return createUnauthorizedResponse();
+    }
+
+    // Rate limiting
+    const clientIp = request.headers.get("x-forwarded-for") || "unknown";
+    if (!checkRateLimit(`featured-${clientIp}`, 10, 3600000)) {
+      return createRateLimitedResponse();
+    }
+
     const body: FeaturedListingsRequest = await request.json();
 
     if (!body.listings || body.listings.length === 0) {
