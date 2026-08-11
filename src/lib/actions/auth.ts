@@ -282,15 +282,17 @@ export async function setPasswordAction(
   }
 
   if (mode === 'signup') {
-    // Signup flow: user has an active session
+    // Signup flow: user has an active session from verifySignupCodeAction
     try {
       const supabase = await createClient();
+
+      // Update the password in the current session
       const { error: updateError } = await supabase.auth.updateUser({
         password,
       });
 
       if (updateError) {
-        console.error("Error updating password:", updateError);
+        console.error("[AUTH] Error updating password (signup):", updateError);
         return {
           error: "Failed to set password. Please try again.",
           step: 'set-password',
@@ -299,13 +301,14 @@ export async function setPasswordAction(
         };
       }
 
+      // Mark password as set in profile
       const { error: profileError } = await supabase
         .from("profiles")
         .update({ password_set: true })
         .eq("email", email);
 
       if (profileError) {
-        console.error("Error updating profile:", profileError);
+        console.error("[AUTH] Error updating profile (signup):", profileError);
         return {
           error: "Password set but profile update failed. Please contact support.",
           step: 'set-password',
@@ -314,12 +317,14 @@ export async function setPasswordAction(
         };
       }
 
+      // Send welcome email
       await sendWelcomeEmail(email, formData.get("displayName") as string ?? "User");
 
+      // Session is already active from verifySignupCodeAction, just redirect
       const nextPath = next && typeof next === "string" && next.startsWith("/") ? next : "/";
       redirect(nextPath);
     } catch (error) {
-      console.error("Error in set password (signup):", error);
+      console.error("[AUTH] Error in set password (signup):", error);
       return {
         error: "An error occurred. Please try again.",
         step: 'set-password',
