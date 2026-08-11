@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export const metadata = {
   title: "Advertise on Haat Nepal",
   description: "Reach millions of buyers and sellers on Nepal's fastest-growing marketplace.",
@@ -11,8 +9,7 @@ const adOptions = [
     title: "Sponsored Listings",
     icon: "📍",
     description: "Boost your listing visibility with sponsored placement",
-    features: ["Higher visibility in search", "Featured badge", "Priority placement", "7-30 day campaigns"],
-    price: "₹499/week",
+    features: ["Higher visibility in search", "Featured badge", "Priority placement", "Flexible campaign duration"],
   },
   {
     id: 2,
@@ -20,23 +17,20 @@ const adOptions = [
     icon: "🎯",
     description: "Advertise directly on category pages",
     features: ["High-traffic placement", "Targeted audience", "Custom creative", "Performance tracking"],
-    price: "Custom pricing",
   },
   {
     id: 3,
     title: "Seller Storefront Featured",
     icon: "🏪",
     description: "Get your seller profile featured prominently",
-    features: ["Featured seller badge", "Homepage placement", "Increased visibility", "30-90 day campaign"],
-    price: "₹2,999/month",
+    features: ["Featured seller badge", "Homepage placement", "Increased visibility", "Flexible campaign duration"],
   },
   {
     id: 4,
     title: "Keyword Bidding",
     icon: "🔍",
     description: "Bid on popular search terms",
-    features: ["Targeted traffic", "Pay-per-click", "Real-time bidding", "Performance analytics"],
-    price: "₹0.10+ per click",
+    features: ["Targeted traffic", "Performance-based", "Real-time tracking", "Performance analytics"],
   },
   {
     id: 5,
@@ -44,7 +38,6 @@ const adOptions = [
     icon: "⭐",
     description: "Featured placement on Haat Nepal homepage",
     features: ["Maximum visibility", "All Nepal audience", "Premium placement", "Performance guaranteed"],
-    price: "₹9,999/month",
   },
   {
     id: 6,
@@ -52,7 +45,6 @@ const adOptions = [
     icon: "📧",
     description: "Reach active users via our email newsletter",
     features: ["Subscriber targeting", "High engagement", "Custom creative", "Performance tracking"],
-    price: "₹5,000/campaign",
   },
 ];
 
@@ -138,10 +130,12 @@ export default function AdvertisePage() {
                   ))}
                 </ul>
                 <div className="border-t border-slate-200 pt-4">
-                  <p className="mb-4 text-lg font-bold text-slate-900">{option.price}</p>
-                  <button className="w-full rounded-md bg-orange-600 px-4 py-2 font-semibold text-white transition hover:bg-orange-700">
-                    Learn More
-                  </button>
+                  <a
+                    href="mailto:advertising@haatnepal.com"
+                    className="block w-full rounded-md bg-orange-600 px-4 py-2 text-center font-semibold text-white transition hover:bg-orange-700"
+                  >
+                    Contact for Details
+                  </a>
                 </div>
               </div>
             ))}
@@ -205,63 +199,19 @@ export default function AdvertisePage() {
         </div>
       </section>
 
-      {/* Pricing Table */}
-      <section className="border-t border-slate-200 bg-slate-50 py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h2 className="mb-8 text-3xl font-bold text-slate-900">Pricing & ROI</h2>
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="w-full">
-              <thead className="bg-slate-100">
-                <tr>
-                  <th className="px-6 py-4 text-left font-bold text-slate-900">Ad Type</th>
-                  <th className="px-6 py-4 text-left font-bold text-slate-900">Minimum Budget</th>
-                  <th className="px-6 py-4 text-left font-bold text-slate-900">Average ROI</th>
-                  <th className="px-6 py-4 text-left font-bold text-slate-900">Best For</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                <tr className="hover:bg-slate-50">
-                  <td className="px-6 py-4 text-slate-700">Sponsored Listings</td>
-                  <td className="px-6 py-4 text-slate-700">₹499</td>
-                  <td className="px-6 py-4 text-slate-700">300-500%</td>
-                  <td className="px-6 py-4 text-slate-700">Individual Sellers</td>
-                </tr>
-                <tr className="hover:bg-slate-50">
-                  <td className="px-6 py-4 text-slate-700">Keyword Bidding</td>
-                  <td className="px-6 py-4 text-slate-700">₹2,000</td>
-                  <td className="px-6 py-4 text-slate-700">200-400%</td>
-                  <td className="px-6 py-4 text-slate-700">Targeted Traffic</td>
-                </tr>
-                <tr className="hover:bg-slate-50">
-                  <td className="px-6 py-4 text-slate-700">Homepage Featured</td>
-                  <td className="px-6 py-4 text-slate-700">₹9,999</td>
-                  <td className="px-6 py-4 text-slate-700">400-600%</td>
-                  <td className="px-6 py-4 text-slate-700">Maximum Visibility</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="py-16">
         <div className="mx-auto max-w-2xl px-4 text-center sm:px-6 lg:px-8">
           <h2 className="mb-4 text-3xl font-bold text-slate-900">Ready to Grow Your Business?</h2>
           <p className="mb-8 text-lg text-slate-600">
-            Talk to our advertising experts about the right strategy for your goals.
+            Contact our advertising team to discuss the right strategy for your goals.
           </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <button className="rounded-md bg-orange-600 px-8 py-3 font-semibold text-white transition hover:bg-orange-700">
-              Start Advertising
-            </button>
-            <a
-              href="mailto:advertise@haatnepal.com"
-              className="rounded-md border-2 border-orange-600 px-8 py-3 font-semibold text-orange-600 transition hover:bg-orange-50"
-            >
-              Contact Sales
-            </a>
-          </div>
+          <a
+            href="mailto:advertising@haatnepal.com"
+            className="inline-block rounded-md bg-orange-600 px-8 py-3 font-semibold text-white transition hover:bg-orange-700"
+          >
+            Contact advertising@haatnepal.com
+          </a>
         </div>
       </section>
     </main>
