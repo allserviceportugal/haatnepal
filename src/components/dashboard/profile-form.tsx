@@ -34,6 +34,16 @@ export function ProfileForm({ profile, canBrand }: { profile: Profile; canBrand:
       </div>
 
       <div>
+        <label className="block text-sm font-semibold text-slate-700">Email</label>
+        <input
+          value={profile.email ?? ""}
+          disabled
+          className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500"
+        />
+        <p className="mt-1 text-xs text-slate-500">Your email is verified and cannot be changed after registration.</p>
+      </div>
+
+      <div>
         <label className="block text-sm font-semibold text-slate-700">Phone</label>
         <input
           value={profile.phone}
