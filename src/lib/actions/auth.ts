@@ -1,13 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import crypto from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import {
   signUpSchema,
   loginSchema,
 } from "@/lib/validations/auth";
-import { sendWelcomeEmail } from "@/lib/services/email";
+import { sendConfirmationEmail } from "@/lib/services/email";
 
 export type AuthActionState = {
   error?: string;
@@ -76,7 +77,7 @@ export async function signUpAction(
     };
   }
 
-  // Create auth user (Supabase will send confirmation email automatically)
+  // Create auth user WITHOUT email confirmation requirement
   console.log("[SIGNUP] Creating auth user:", email);
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
@@ -87,7 +88,7 @@ export async function signUpAction(
         phone,
         account_type: accountType,
       },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      emailRedirectTo: undefined, // Don't use Supabase email confirmation
     },
   });
 
@@ -101,7 +102,7 @@ export async function signUpAction(
 
   console.log("[SIGNUP] Auth user created:", authData.user.id);
 
-  // Create profile
+  // Create profile with email_confirmed = false
   console.log("[SIGNUP] Creating profile...");
   const { error: profileError } = await supabase.from("profiles").insert({
     id: authData.user.id,
@@ -111,6 +112,7 @@ export async function signUpAction(
     account_type: accountType,
     phone_verified: false,
     password_set: true,
+    email_confirmed: false,
   });
 
   if (profileError) {
@@ -121,7 +123,39 @@ export async function signUpAction(
     };
   }
 
-  console.log("[SIGNUP] Profile created successfully");
+  console.log("[SIGNUP] Profile created, generating confirmation token...");
+
+  // Generate confirmation token
+  const token = crypto.randomBytes(32).toString("hex");
+  const { error: tokenError } = await supabase
+    .from("email_confirmation_tokens")
+    .insert({
+      user_id: authData.user.id,
+      token,
+      email,
+    });
+
+  if (tokenError) {
+    console.error("[SIGNUP] Token creation failed:", tokenError?.message);
+    return {
+      error: "Failed to create confirmation token",
+      step: 'email',
+    };
+  }
+
+  // Send confirmation email via Resend
+  console.log("[SIGNUP] Sending confirmation email...");
+  const emailResult = await sendConfirmationEmail(email, displayName, token);
+
+  if (!emailResult.success) {
+    console.error("[SIGNUP] Email sending failed:", emailResult.error);
+    return {
+      error: `Failed to send confirmation email: ${emailResult.error}`,
+      step: 'email',
+    };
+  }
+
+  console.log("[SIGNUP] Account created and confirmation email sent");
 
   return {
     success: true,
@@ -131,7 +165,7 @@ export async function signUpAction(
 }
 
 /**
- * LOGIN: Email + Password login
+ * LOGIN: Email + Password login (requires email confirmation)
  */
 export async function loginAction(
   _prevState: AuthActionState,
@@ -159,6 +193,31 @@ export async function loginAction(
 
   try {
     const supabase = await createClient({ rememberMe });
+
+    // Check if email is confirmed
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("email_confirmed")
+      .eq("email", email)
+      .single();
+
+    if (profileError || !profile) {
+      console.error("[LOGIN] Profile lookup failed:", profileError?.message);
+      return {
+        error: "Invalid email or password.",
+        step: 'email',
+      };
+    }
+
+    if (!profile.email_confirmed) {
+      console.log("[LOGIN] Email not confirmed for:", email);
+      return {
+        error: "Please confirm your email before logging in. Check your inbox for the confirmation link.",
+        step: 'email',
+      };
+    }
+
+    // Email is confirmed, proceed with login
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
