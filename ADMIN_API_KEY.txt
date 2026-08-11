@@ -1,0 +1,60 @@
+ADMIN API KEY FOR HAAT NEPAL
+============================
+
+Generated: 2026-08-11
+Status: READY FOR PRODUCTION
+
+Key: 1473404dbc265508aab4dcfec0f642e80cfee82383bd8c69eec3fb8ad1ef40a2
+
+HOW TO USE:
+-----------
+
+1. LOCAL DEVELOPMENT:
+   - Already added to .env.local
+   - Will be loaded automatically when you run the app
+   - No additional setup needed
+
+2. PRODUCTION (Cloudflare Pages):
+   - Go to Cloudflare Dashboard → Pages
+   - Select "haatnepal" project
+   - Click Settings → Environment variables
+   - Add new environment variable:
+     Name: ADMIN_API_KEY
+     Value: 1473404dbc265508aab4dcfec0f642e80cfee82383bd8c69eec3fb8ad1ef40a2
+     Environment: Production (and Preview if needed)
+   - Click Save
+   - Redeploy the site
+
+3. TESTING THE API:
+   curl -X POST https://haatnepal.pages.dev/api/newsletter/send-blog \
+     -H "X-Admin-API-Key: 1473404dbc265508aab4dcfec0f642e80cfee82383bd8c69eec3fb8ad1ef40a2" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "title": "Test Article",
+       "excerpt": "Test excerpt",
+       "category": "shopping-tips",
+       "author": "Admin",
+       "blogUrl": "https://haatnepal.pages.dev/blog/test"
+     }'
+
+SECURITY NOTES:
+---------------
+- This key protects all newsletter endpoints
+- Keep it secret - never share publicly
+- Rotate quarterly (generate new key with: openssl rand -hex 32)
+- Monitor for unauthorized access attempts
+- Enable Cloudflare rate limiting in dashboard
+
+PROTECTED ENDPOINTS:
+- POST /api/newsletter/send-blog
+- POST /api/newsletter/send-featured
+- POST /api/newsletter/send-weekly-digest
+- POST /api/newsletter/send-top-sellers
+- POST /api/newsletter/sync-users
+
+RATE LIMITS (per IP):
+- Blog: 5 requests/hour
+- Featured: 10 requests/hour
+- Top Sellers: 10 requests/hour
+- Weekly Digest: 2 requests/day
+- Sync Users: 1 request/hour
