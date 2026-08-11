@@ -184,6 +184,20 @@ export async function verifySignupCodeAction(
     };
   }
 
+  // Auto-confirm user email since they verified via OTP
+  const admin = createAdminClient();
+  const { error: confirmError } = await admin.auth.admin.updateUserById(
+    authData.user.id,
+    { email_confirm: true }
+  );
+
+  if (confirmError) {
+    console.warn("[AUTH] Warning: Could not auto-confirm user email:", confirmError);
+    // Continue anyway - they can still proceed
+  } else {
+    console.log("[AUTH] User email auto-confirmed after OTP verification");
+  }
+
   const { data: existingProfile } = await supabase
     .from("profiles")
     .select("id")
