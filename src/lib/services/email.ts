@@ -1,11 +1,49 @@
-import { Resend } from "resend";
+/**
+ * Send email via Resend API
+ */
+async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+  try {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.error("RESEND_API_KEY is not set");
+      return false;
+    }
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "onboarding@resend.dev",
+        to,
+        subject,
+        html,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Resend API error:", {
+        status: response.status,
+        error: errorData,
+      });
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error sending email:", error);
+    return false;
+  }
+}
 
 /**
  * Send OTP verification email with haatnepal branding
  */
 export async function sendOtpEmail(email: string, code: string): Promise<boolean> {
   try {
-    const resend = new Resend(process.env.RESEND_API_KEY);
     const html = `
 <!DOCTYPE html>
 <html>
@@ -80,15 +118,8 @@ export async function sendOtpEmail(email: string, code: string): Promise<boolean
 </html>
     `;
 
-    const { error } = await resend.emails.send({
-      from: "noreply@haatnepal.com",
-      to: email,
-      subject: "Verify Your Haat Nepal Account - 6-Digit Code",
-      html,
-    });
-
-    if (error) {
-      console.error("Error sending OTP email via Resend:", error);
+    const success = await sendEmail(email, "Verify Your Haat Nepal Account - 6-Digit Code", html);
+    if (!success) {
       return false;
     }
 
@@ -105,7 +136,6 @@ export async function sendOtpEmail(email: string, code: string): Promise<boolean
  */
 export async function sendWelcomeEmail(email: string, displayName: string): Promise<boolean> {
   try {
-    const resend = new Resend(process.env.RESEND_API_KEY);
     const html = `
 <!DOCTYPE html>
 <html>
@@ -153,15 +183,8 @@ export async function sendWelcomeEmail(email: string, displayName: string): Prom
 </html>
     `;
 
-    const { error } = await resend.emails.send({
-      from: "noreply@haatnepal.com",
-      to: email,
-      subject: "Welcome to Haat Nepal! 🎉",
-      html,
-    });
-
-    if (error) {
-      console.error("Error sending welcome email via Resend:", error);
+    const success = await sendEmail(email, "Welcome to Haat Nepal! 🎉", html);
+    if (!success) {
       return false;
     }
 
