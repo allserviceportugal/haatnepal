@@ -4,10 +4,25 @@
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   try {
     const apiKey = process.env.RESEND_API_KEY;
+    console.log("DEBUG: Sending email", {
+      to,
+      apiKeySet: !!apiKey,
+      apiKeyLength: apiKey?.length || 0,
+    });
+
     if (!apiKey) {
-      console.error("RESEND_API_KEY is not set");
+      console.error("RESEND_API_KEY is not set in environment");
       return false;
     }
+
+    const payload = {
+      from: "support@noreply.haatnepal.com",
+      to,
+      subject,
+      html,
+    };
+
+    console.log("DEBUG: Calling Resend API with payload", { from: payload.from, to: payload.to });
 
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -15,13 +30,10 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        from: "support@noreply.haatnepal.com",
-        to,
-        subject,
-        html,
-      }),
+      body: JSON.stringify(payload),
     });
+
+    console.log("DEBUG: Resend API response status:", response.status);
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -32,9 +44,14 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
       return false;
     }
 
+    const successData = await response.json();
+    console.log("Resend API success:", successData);
     return true;
   } catch (error) {
-    console.error("Error sending email:", error);
+    console.error("Error sending email:", {
+      message: String(error),
+      error,
+    });
     return false;
   }
 }
