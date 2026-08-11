@@ -11,7 +11,7 @@ export function SignupForm({ next }: { next?: string }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Success state - show confirmation message
+  // Success state - auto-redirect to homepage
   if (state.success && state.step === 'success') {
     return (
       <div className="space-y-6 text-center">
@@ -22,27 +22,20 @@ export function SignupForm({ next }: { next?: string }) {
             Your account has been created successfully!
           </p>
           <p className="mt-2 text-sm text-emerald-700">
+            Redirecting to homepage in 2 seconds...
+          </p>
+          <p className="mt-3 text-xs text-emerald-600">
             A welcome email has been sent to <strong className="break-all">{state.email}</strong>
           </p>
         </div>
 
-        <div className="space-y-3">
-          <p className="text-sm text-slate-600">
-            Didn't receive an email?{" "}
-            <button
-              type="button"
-              className="font-semibold text-orange-600 hover:text-orange-700"
-            >
-              Resend confirmation
-            </button>
-          </p>
-          <Link
-            href="/login"
-            className="block font-semibold text-orange-600 hover:text-orange-700"
-          >
-            Back to login
-          </Link>
-        </div>
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            setTimeout(() => {
+              window.location.href = '/';
+            }, 2000);
+          `
+        }} />
       </div>
     );
   }
