@@ -1,15 +1,27 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signUpAction } from "@/lib/actions/auth";
 
 export function SignupForm({ next }: { next?: string }) {
+  const router = useRouter();
   const [state, formAction, isPending] = useActionState(signUpAction, {
     step: 'email',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Auto-redirect to homepage after success
+  useEffect(() => {
+    if (state.success && state.step === 'success') {
+      const timer = setTimeout(() => {
+        router.push('/');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [state.success, state.step, router]);
 
   // Success state - auto-redirect to homepage
   if (state.success && state.step === 'success') {
@@ -33,14 +45,6 @@ export function SignupForm({ next }: { next?: string }) {
             Please check your email and keep your password safe. Do not share it with anyone.
           </p>
         </div>
-
-        <script dangerouslySetInnerHTML={{
-          __html: `
-            setTimeout(() => {
-              window.location.href = '/';
-            }, 3000);
-          `
-        }} />
       </div>
     );
   }
