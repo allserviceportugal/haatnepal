@@ -162,6 +162,7 @@ export async function verifySignupCodeAction(
   const { password } = metadata;
 
   // Create Supabase auth user with user's password
+  console.log("[SIGNUP] Creating auth user:", { email, phone: metadata.phone });
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
@@ -175,25 +176,34 @@ export async function verifySignupCodeAction(
   });
 
   if (authError || !authData.user) {
-    console.error("[AUTH] Error creating auth user:", authError);
+    console.error("[SIGNUP] Auth user creation FAILED:", {
+      error: authError?.message,
+      code: authError?.code,
+      status: authError?.status,
+    });
     return {
-      error: "Failed to create account. Please try again.",
+      error: `Failed to create account: ${authError?.message || "unknown"}`,
       step: 'verify',
       email,
     };
   }
+  console.log("[SIGNUP] Auth user created:", authData.user.id);
 
   // Auto-confirm email since they verified via OTP
+  console.log("[SIGNUP] Auto-confirming email...");
   const { error: confirmError } = await admin.auth.admin.updateUserById(
     authData.user.id,
     { email_confirm: true }
   );
 
   if (confirmError) {
-    console.warn("[AUTH] Could not auto-confirm email:", confirmError);
+    console.warn("[SIGNUP] Auto-confirm warning:", confirmError?.message);
+  } else {
+    console.log("[SIGNUP] Email confirmed");
   }
 
   // Create profile
+  console.log("[SIGNUP] Creating profile...");
   const { data: existingProfile } = await supabase
     .from("profiles")
     .select("id")
@@ -208,17 +218,21 @@ export async function verifySignupCodeAction(
       phone: metadata.phone,
       account_type: metadata.account_type,
       phone_verified: false,
-      password_set: true, // Password was set at signup
+      password_set: true,
     });
 
     if (profileError) {
-      console.error("[AUTH] Error creating profile:", profileError);
+      console.error("[SIGNUP] Profile creation FAILED:", {
+        error: profileError?.message,
+        code: profileError?.code,
+      });
       return {
-        error: "Account created but profile setup failed. Please contact support.",
+        error: `Profile failed: ${profileError?.message || "unknown"}`,
         step: 'verify',
         email,
       };
     }
+    console.log("[SIGNUP] Profile created");
   }
 
   // Mark OTP as verified
