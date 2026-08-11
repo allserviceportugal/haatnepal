@@ -128,6 +128,36 @@ export async function verifySignupCodeAction(
   }
 
   const supabase = await createClient();
+
+  // Check if phone number is already registered
+  const { data: existingPhone } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("phone", metadata.phone)
+    .single();
+
+  if (existingPhone) {
+    return {
+      error: "This phone number is already registered. Please use a different number.",
+      step: 'verify',
+      email,
+    };
+  }
+
+  // Check if email is already registered
+  const { data: existingEmail } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("email", email)
+    .single();
+
+  if (existingEmail) {
+    return {
+      error: "This email is already registered. Please use a different email or log in.",
+      step: 'verify',
+      email,
+    };
+  }
   const randomPassword = Math.random().toString(36).slice(-20);
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
