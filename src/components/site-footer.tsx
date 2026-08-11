@@ -77,9 +77,9 @@ export function SiteFooter() {
             <h3 className="font-bold uppercase tracking-wider text-slate-900">Company</h3>
             <ul className="mt-3 space-y-2 text-sm">
               <li><Link href="/about" className="text-slate-600 hover:text-orange-600">About Haat Nepal</Link></li>
-              <li><a href="#" className="text-slate-600 hover:text-orange-600">Blog</a></li>
-              <li><a href="#" className="text-slate-600 hover:text-orange-600">Careers</a></li>
-              <li><a href="#" className="text-slate-600 hover:text-orange-600">Advertise</a></li>
+              <li><Link href="/blog" className="text-slate-600 hover:text-orange-600">Blog</Link></li>
+              <li><Link href="/careers" className="text-slate-600 hover:text-orange-600">Careers</Link></li>
+              <li><Link href="/advertise" className="text-slate-600 hover:text-orange-600">Advertise</Link></li>
             </ul>
           </div>
         </div>
