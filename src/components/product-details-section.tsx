@@ -1,7 +1,5 @@
 import { formatPrice } from '@/lib/format';
-import type { Database } from '@/lib/supabase/types';
-
-type Listing = Database['public']['Tables']['listings']['Row'];
+import type { Listing } from '@/lib/supabase/types';
 
 interface ProductDetailsSectionProps {
   listing: Partial<Listing>;
@@ -80,7 +78,7 @@ export function ProductDetailsSection({ listing }: ProductDetailsSectionProps) {
         <div>
           <p className="text-xs font-semibold text-slate-500">Accepted Payment Methods</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {paymentMethods.map((method) => (
+            {paymentMethods.map((method: string) => (
               <span
                 key={method}
                 className="inline-block rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 capitalize"

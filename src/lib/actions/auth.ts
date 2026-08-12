@@ -142,11 +142,6 @@ export async function signUpAction(
   console.log("[SIGNUP] Creating/updating profile...");
   const adminClient = createAdminClient();
 
-  // If Pro is selected and user is individual, convert to business
-  if (planKey === 'pro' && accountType !== 'business') {
-    accountType = 'business';
-  }
-
   // Fetch plan ID if a non-default plan was selected
   let subscriptionPlanId: string | null = null;
   if (planKey && planKey !== 'normal') {

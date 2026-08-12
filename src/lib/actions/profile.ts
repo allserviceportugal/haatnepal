@@ -37,13 +37,13 @@ export async function updateProfileAction(
   // directly — mirrors featureListingAction's plan-lookup pattern.
   const { data: profileRow } = await supabase
     .from("profiles")
-    .select("account_type, subscription_plans(allows_storefront_branding)")
+    .select("subscription_plans(allows_storefront_branding)")
     .eq("id", user.id)
     .single();
   const plan = (
     profileRow as unknown as { subscription_plans: { allows_storefront_branding: boolean } | null } | null
   )?.subscription_plans;
-  const canBrand = profileRow?.account_type === "business" && (plan?.allows_storefront_branding ?? false);
+  const canBrand = plan?.allows_storefront_branding ?? false;
 
   const { error } = await supabase
     .from("profiles")

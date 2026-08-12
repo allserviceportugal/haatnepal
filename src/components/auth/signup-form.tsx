@@ -220,12 +220,6 @@ export function SignupForm({ next }: { next?: string }) {
             </span>
           </label>
         </div>
-        {state.formValues?.planKey === "pro" && state.formValues?.accountType === "individual" && (
-          <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-xs text-orange-900">
-            <p className="font-semibold">✓ Your account will be converted to Business</p>
-            <p className="mt-1">Pro plan includes branded storefront, which requires a Business account.</p>
-          </div>
-        )}
       </div>
 
       <div className="space-y-3 rounded-lg border border-slate-100 bg-slate-50 p-4">

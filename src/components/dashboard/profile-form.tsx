@@ -88,11 +88,10 @@ export function ProfileForm({ profile, canBrand }: { profile: Profile; canBrand:
         />
       </div>
 
-      {profile.account_type === "business" && (
-        <div className="border-t border-slate-200 pt-5">
-          <h2 className="text-sm font-bold uppercase tracking-[0.1em] text-slate-500">
-            Storefront branding
-          </h2>
+      <div className="border-t border-slate-200 pt-5">
+        <h2 className="text-sm font-bold uppercase tracking-[0.1em] text-slate-500">
+          Storefront branding
+        </h2>
 
           {!canBrand && (
             <p className="mt-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700">
@@ -136,8 +135,7 @@ export function ProfileForm({ profile, canBrand }: { profile: Profile; canBrand:
               />
             </div>
           </fieldset>
-        </div>
-      )}
+      </div>
 
       <button
         type="submit"
