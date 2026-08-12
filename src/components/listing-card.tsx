@@ -21,7 +21,7 @@ export function ListingCard({
       href={href}
       className="group block overflow-hidden rounded-md border border-slate-200 bg-white transition hover:shadow-md hover:shadow-slate-200"
     >
-      <div className="relative h-36 w-full overflow-hidden bg-slate-100 sm:h-40">
+      <div className="relative w-full overflow-hidden bg-slate-100 aspect-video">
         {image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
