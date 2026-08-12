@@ -13,6 +13,8 @@ export function SignupForm({ next }: { next?: string }) {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showPlanDropdown, setShowPlanDropdown] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState("normal");
 
   // Auto-redirect to homepage after success
   useEffect(() => {
@@ -165,66 +167,80 @@ export function SignupForm({ next }: { next?: string }) {
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-slate-700">Plan (Optional upgrade)</label>
-        <div className="mt-2 space-y-2">
-          <label className="flex cursor-pointer rounded-xl border border-slate-200 px-4 py-3 text-sm has-[:checked]:border-orange-300 has-[:checked]:bg-orange-50">
-            <span className="flex flex-1 items-center gap-2 font-semibold text-slate-700">
-              <input
-                type="radio"
-                name="planKey"
-                value="normal"
-                defaultChecked={state.formValues?.planKey !== "plus" && state.formValues?.planKey !== "pro"}
-                className="h-4 w-4"
-              />
-              Free Plan (included with your account type)
-            </span>
-          </label>
-          <label className="flex cursor-pointer rounded-xl border border-slate-200 px-4 py-3 text-sm has-[:checked]:border-orange-300 has-[:checked]:bg-orange-50">
-            <span className="flex flex-1 flex-col gap-1 font-semibold text-slate-700">
-              <span className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="planKey"
-                  value="plus"
-                  defaultChecked={state.formValues?.planKey === "plus"}
-                  className="h-4 w-4"
-                />
-                Plus — Rs 499/month
-              </span>
-              <span className="ml-6 text-xs font-normal text-slate-500">100 listings/month • Advanced analytics</span>
-            </span>
-          </label>
-          <label className="flex cursor-pointer rounded-xl border border-slate-200 px-4 py-3 text-sm has-[:checked]:border-orange-300 has-[:checked]:bg-orange-50">
-            <span className="flex flex-1 flex-col gap-1 font-semibold text-slate-700">
-              <span className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="planKey"
-                  value="pro"
-                  defaultChecked={state.formValues?.planKey === "pro"}
-                  className="h-4 w-4"
-                />
-                Pro — Rs 999/month
-              </span>
-              <span className="ml-6 text-xs font-normal text-slate-500">200 listings/month • Branded storefront • Priority support</span>
-            </span>
-          </label>
-          <label className="flex cursor-pointer rounded-xl border border-slate-200 px-4 py-3 text-sm has-[:checked]:border-orange-300 has-[:checked]:bg-orange-50">
-            <span className="flex flex-1 flex-col gap-1 font-semibold text-slate-700">
-              <span className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="planKey"
-                  value="premium"
-                  defaultChecked={state.formValues?.planKey === "premium"}
-                  className="h-4 w-4"
-                />
-                Premium — Rs 4999/month
-              </span>
-              <span className="ml-6 text-xs font-normal text-slate-500">500 listings/month • 50 featured listings/month • Storefront branding</span>
-            </span>
-          </label>
+        <input type="hidden" name="planKey" value={selectedPlan} />
+
+        <div className="rounded-xl border border-slate-200 px-4 py-3 text-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-slate-700">Free Plan (included with your account type)</p>
+              <p className="mt-1 text-xs text-slate-500">{state.formValues?.accountType === "business" ? "10" : "5"} free listings/month</p>
+            </div>
+            <div className="text-lg">✓</div>
+          </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setShowPlanDropdown(!showPlanDropdown)}
+          className="mt-2 text-sm font-semibold text-orange-600 hover:text-orange-700"
+        >
+          {showPlanDropdown ? "Hide other plans" : "Check other plans →"}
+        </button>
+
+        {showPlanDropdown && (
+          <div className="mt-2 space-y-2 rounded-lg border border-slate-100 bg-slate-50 p-3">
+            <label className="flex cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm has-[:checked]:border-orange-300 has-[:checked]:bg-orange-50">
+              <span className="flex flex-1 flex-col gap-0.5">
+                <span className="flex items-center gap-2 font-semibold text-slate-700">
+                  <input
+                    type="radio"
+                    name="planOption"
+                    value="plus"
+                    checked={selectedPlan === "plus"}
+                    onChange={() => setSelectedPlan("plus")}
+                    className="h-4 w-4"
+                  />
+                  Plus — Rs 499/month
+                </span>
+                <span className="ml-6 text-xs font-normal text-slate-500">100 listings/month • Advanced analytics</span>
+              </span>
+            </label>
+
+            <label className="flex cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm has-[:checked]:border-orange-300 has-[:checked]:bg-orange-50">
+              <span className="flex flex-1 flex-col gap-0.5">
+                <span className="flex items-center gap-2 font-semibold text-slate-700">
+                  <input
+                    type="radio"
+                    name="planOption"
+                    value="pro"
+                    checked={selectedPlan === "pro"}
+                    onChange={() => setSelectedPlan("pro")}
+                    className="h-4 w-4"
+                  />
+                  Pro — Rs 999/month
+                </span>
+                <span className="ml-6 text-xs font-normal text-slate-500">200 listings/month • Branded storefront • Priority support</span>
+              </span>
+            </label>
+
+            <label className="flex cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm has-[:checked]:border-orange-300 has-[:checked]:bg-orange-50">
+              <span className="flex flex-1 flex-col gap-0.5">
+                <span className="flex items-center gap-2 font-semibold text-slate-700">
+                  <input
+                    type="radio"
+                    name="planOption"
+                    value="premium"
+                    checked={selectedPlan === "premium"}
+                    onChange={() => setSelectedPlan("premium")}
+                    className="h-4 w-4"
+                  />
+                  Premium — Rs 4999/month
+                </span>
+                <span className="ml-6 text-xs font-normal text-slate-500">500 listings/month • 50 featured listings/month • Storefront branding</span>
+              </span>
+            </label>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3 rounded-lg border border-slate-100 bg-slate-50 p-4">
