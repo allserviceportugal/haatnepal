@@ -18,7 +18,7 @@ export async function switchPlanAction(planKey: Exclude<SubscriptionTier, "custo
     redirect("/login?next=/dashboard/plan");
   }
 
-  // Get current plan to enforce upgrade-only
+  // Get current plan
   const { data: profile } = await supabase
     .from("profiles")
     .select("subscription_plans(key)")
@@ -27,12 +27,17 @@ export async function switchPlanAction(planKey: Exclude<SubscriptionTier, "custo
 
   const currentPlanKey = (profile as any)?.subscription_plans?.key as SubscriptionTier | null;
 
-  // Check upgrade-only: reject if trying to downgrade
-  if (currentPlanKey && PLAN_ORDER.indexOf(planKey) < PLAN_ORDER.indexOf(currentPlanKey)) {
-    // User tried to downgrade; don't allow, just redirect back
+  // Check if this is an upgrade to a verification-gated tier
+  const VERIFICATION_REQUIRED_TIERS: SubscriptionTier[] = ["plus", "pro", "premium"];
+  const isUpgrade = !currentPlanKey || PLAN_ORDER.indexOf(planKey) > PLAN_ORDER.indexOf(currentPlanKey);
+
+  if (isUpgrade && VERIFICATION_REQUIRED_TIERS.includes(planKey)) {
+    // Must go through the verification flow instead — refuse the direct switch
     revalidatePath("/dashboard/plan");
     redirect("/dashboard/plan");
   }
+  // Otherwise: downgrades to any tier, lateral moves, and upgrades to Business
+  // (free, ungated) all proceed exactly as before — just update subscription_plan_id
 
   const { data: plan } = await supabase
     .from("subscription_plans")

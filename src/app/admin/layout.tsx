@@ -40,6 +40,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             >
               Reports
             </Link>
+            <Link
+              href="/admin/verifications"
+              className="text-sm font-semibold text-slate-600 hover:text-slate-900"
+            >
+              Verifications
+            </Link>
           </nav>
         </div>
       </div>

@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { PlanCard } from "@/components/plan-card";
 import { PLAN_ORDER } from "@/lib/constants/plans";
 import { switchPlanAction } from "@/lib/actions/subscriptions";
-import type { SubscriptionPlan } from "@/lib/supabase/types";
+import type { SubscriptionPlan, SubscriptionTier } from "@/lib/supabase/types";
+import { timeAgo } from "@/lib/format";
 
 function startOfCurrentMonthISO() {
   const now = new Date();
@@ -24,7 +26,7 @@ export default async function DashboardPlanPage() {
 
   if (!user) redirect("/login?next=/dashboard/plan");
 
-  const [{ data: profile }, { data: plansData }, { count: usedThisMonth }] = await Promise.all([
+  const [{ data: profile }, { data: plansData }, { count: usedThisMonth }, { data: verificationRequests }] = await Promise.all([
     supabase
       .from("profiles")
       .select("subscription_plan_id, subscription_plans(*)")
@@ -36,6 +38,11 @@ export default async function DashboardPlanPage() {
       .select("id", { count: "exact", head: true })
       .eq("seller_id", user.id)
       .gte("created_at", startOfCurrentMonthISO()),
+    supabase
+      .from("business_verification_requests")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false }),
   ]);
 
   const currentPlan =
@@ -43,6 +50,15 @@ export default async function DashboardPlanPage() {
       ?.subscription_plans ?? null;
   const plans = (plansData ?? []).sort(
     (a, b) => PLAN_ORDER.indexOf(a.key) - PLAN_ORDER.indexOf(b.key)
+  );
+
+  // Create a map of verification requests by plan key and status
+  const verificationsByPlan = (verificationRequests ?? []).reduce(
+    (acc, req: any) => {
+      acc[req.requested_plan_key] = req;
+      return acc;
+    },
+    {} as Record<string, any>
   );
 
   return (
@@ -65,8 +81,9 @@ export default async function DashboardPlanPage() {
           // Treat NULL subscription (no plan set) as "on the free plan (normal)"
           const effectiveCurrentPlanKey = currentPlan?.key ?? "normal";
           const isCurrent = plan.key === effectiveCurrentPlanKey;
-          const isBelowCurrent =
-            PLAN_ORDER.indexOf(plan.key) < PLAN_ORDER.indexOf(effectiveCurrentPlanKey);
+          const isUpgrade = PLAN_ORDER.indexOf(plan.key) > PLAN_ORDER.indexOf(effectiveCurrentPlanKey);
+          const isDowngrade = !isCurrent && !isUpgrade && plan.key !== "custom";
+          const verification = verificationsByPlan[plan.key];
 
           let action: ReactNode = null;
 
@@ -74,12 +91,6 @@ export default async function DashboardPlanPage() {
             action = (
               <span className="block rounded-full border border-orange-200 px-4 py-2 text-center text-sm font-semibold text-orange-600">
                 Current plan
-              </span>
-            );
-          } else if (isBelowCurrent) {
-            action = (
-              <span className="block rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-center text-sm font-semibold text-slate-400">
-                Current tier or higher
               </span>
             );
           } else if (plan.key === "custom") {
@@ -91,10 +102,52 @@ export default async function DashboardPlanPage() {
                 Contact us
               </a>
             );
+          } else if (isUpgrade && ["plus", "pro", "premium"].includes(plan.key)) {
+            // Verification-required upgrade
+            if (verification) {
+              if (verification.status === "pending") {
+                action = (
+                  <div className="space-y-2">
+                    <span className="block rounded-full border border-yellow-200 bg-yellow-50 px-4 py-2 text-center text-sm font-semibold text-yellow-700">
+                      Pending review
+                    </span>
+                    <p className="text-center text-xs text-slate-500">
+                      Submitted {timeAgo(verification.created_at)} — admins review within 72 hours
+                    </p>
+                  </div>
+                );
+              } else if (verification.status === "rejected") {
+                action = (
+                  <div className="space-y-2">
+                    <Link
+                      href={`/dashboard/plan/verify/${plan.key}`}
+                      className="block rounded-full bg-orange-500 px-4 py-2 text-center text-sm font-bold text-white hover:bg-orange-600"
+                    >
+                      Apply again
+                    </Link>
+                    {verification.rejection_reason && (
+                      <p className="text-center text-xs text-red-600">
+                        <strong>Reason:</strong> {verification.rejection_reason}
+                      </p>
+                    )}
+                  </div>
+                );
+              }
+            } else {
+              action = (
+                <Link
+                  href={`/dashboard/plan/verify/${plan.key}`}
+                  className="block rounded-full bg-orange-500 px-4 py-2 text-center text-sm font-bold text-white hover:bg-orange-600"
+                >
+                  Apply for {plan.name}
+                </Link>
+              );
+            }
           } else {
+            // Downgrade or ungated upgrade (Normal ↔ Business)
             action = (
               <>
-                <form action={switchPlanAction.bind(null, plan.key as "normal" | "business" | "plus" | "pro")}>
+                <form action={switchPlanAction.bind(null, plan.key as Exclude<SubscriptionTier, "custom">)}>
                   <button
                     type="submit"
                     className="w-full rounded-full bg-orange-500 px-4 py-2 text-sm font-bold text-white hover:bg-orange-600"
@@ -102,10 +155,14 @@ export default async function DashboardPlanPage() {
                     Switch to {plan.name}
                   </button>
                 </form>
-                {plan.is_paid && (
+                {isDowngrade && (
                   <p className="mt-2 text-center text-[11px] text-slate-500">
-                    Billing isn&apos;t connected yet — this switches your plan without payment for
-                    now.
+                    Downgrading takes effect immediately — any payment already made for your current plan is non-refundable. Your existing listings stay live; new listing/feature limits follow the {plan.name} plan from now on.
+                  </p>
+                )}
+                {!isDowngrade && plan.is_paid && (
+                  <p className="mt-2 text-center text-[11px] text-slate-500">
+                    Billing isn&apos;t connected yet — this switches your plan without payment for now.
                   </p>
                 )}
               </>
