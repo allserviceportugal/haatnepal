@@ -14,6 +14,7 @@ import { deleteListingAction, markListingSoldAction } from "@/lib/actions/listin
 import { startConversationAction } from "@/lib/actions/conversations";
 import { withdrawJobApplicationAction } from "@/lib/actions/job-applications";
 import { JobApplicationForm } from "@/components/job-application-form";
+import { ViewTracker } from "@/components/view-tracker";
 import { formatPrice, formatSalary, timeAgo, isWithinEditWindow } from "@/lib/format";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -148,6 +149,8 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      {/* Track views for non-owners only */}
+      {!isOwner && <ViewTracker listingId={listing.id} />}
       <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
         <div>
           <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-slate-100">
@@ -364,6 +367,35 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               <span>{listing.city ? `${listing.city}, ${listing.district}` : listing.district}</span>
               <span>{timeAgo(listing.created_at)}</span>
             </div>
+
+            {/* Engagement row: views, saves, shares */}
+            <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-600">
+              {listing.view_count !== null && (
+                <span className="flex items-center gap-1">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-3.5 w-3.5" aria-hidden>
+                    <path d="M12 5C7 5 2.73 7.61 1 11.5c1.73 3.89 6 6.5 11 6.5s9.27-2.61 11-6.5c-1.73-3.89-6-6.5-11-6.5zm0 9c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z" />
+                  </svg>
+                  {listing.view_count} {listing.view_count === 1 ? "view" : "views"}
+                </span>
+              )}
+              {(listing.favorite_count ?? 0) > 0 && (
+                <span className="flex items-center gap-1">
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5 text-red-500" aria-hidden>
+                    <path d="M12 20s-7.5-4.6-9.9-9.1C.6 7.5 2 4 5.6 4c2 0 3.5 1.1 4.4 2.5C10.9 5.1 12.4 4 14.4 4 18 4 19.4 7.5 17.9 10.9 15.5 15.4 12 20 12 20Z" />
+                  </svg>
+                  {listing.favorite_count} {listing.favorite_count === 1 ? "save" : "saves"}
+                </span>
+              )}
+              {((listing as any).share_count ?? 0) > 0 && (
+                <span className="flex items-center gap-1">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-3.5 w-3.5" aria-hidden>
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4m0 0L8 6m4-4v13" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {(listing as any).share_count} {((listing as any).share_count ?? 0) === 1 ? "share" : "shares"}
+                </span>
+              )}
+            </div>
+
             {(listing.favorite_count ?? 0) > 0 && (
               <div className="mt-2 flex items-center gap-1 text-xs text-slate-600">
                 <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5 text-red-500" aria-hidden>
@@ -547,6 +579,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               <div className="mt-4 border-t border-slate-200 pt-4 flex gap-4">
                 <ShareListingButton
                   listingId={listing.id}
+                  sellerId={listing.seller_id}
                   listingTitle={listing.title}
                   listingImage={images[0]?.url}
                 />

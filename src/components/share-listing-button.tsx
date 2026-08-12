@@ -1,16 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import { trackShareAction } from "@/lib/actions/track-share";
 
 type Props = {
   listingId: string;
+  sellerId: string;
   listingTitle: string;
   listingImage?: string;
 };
 
-export function ShareListingButton({ listingId, listingTitle, listingImage }: Props) {
+export function ShareListingButton({ listingId, sellerId, listingTitle, listingImage }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const handleShare = async (action: () => void) => {
+    // Track the share
+    await trackShareAction(listingId, sellerId).catch((err) => {
+      console.error("Failed to track share:", err);
+    });
+    // Execute the share action
+    action();
+  };
 
   const listingUrl = `${typeof window !== "undefined" ? window.location.origin : "https://haatnepal.com"}/listing/${listingId}`;
   const shareText = `Check out: ${listingTitle}`;
@@ -31,6 +42,7 @@ export function ShareListingButton({ listingId, listingTitle, listingImage }: Pr
       icon: "📋",
       action: handleCopyLink,
       color: "hover:bg-slate-100",
+      skipTracking: true,
     },
     {
       name: "WhatsApp",
@@ -130,12 +142,14 @@ export function ShareListingButton({ listingId, listingTitle, listingImage }: Pr
 
             {/* Share Options Grid */}
             <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {shareOptions.map((option) => (
+              {shareOptions.map((option: any) => (
                 <button
                   key={option.name}
                   onClick={() => {
-                    option.action();
-                    if (option.name !== "Copy Link") {
+                    if (option.skipTracking) {
+                      option.action();
+                    } else {
+                      handleShare(option.action);
                       setIsOpen(false);
                     }
                   }}

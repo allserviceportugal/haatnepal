@@ -72,6 +72,44 @@ export function ListingCTASection({
     }
   }, [currentUserId, listingId, sellerId, supabase, router, sellerPhone]);
 
+  const handleWhatsAppClick = useCallback(async () => {
+    if (!currentUserId) {
+      router.push(`/login?next=/listing/${listingId}`);
+      return;
+    }
+
+    await trackLead(supabase, {
+      listingId,
+      sellerId,
+      buyerId: currentUserId,
+      leadType: 'whatsapp_click',
+    });
+
+    // Open WhatsApp
+    if (sellerPhone) {
+      window.location.href = `https://wa.me/${sellerPhone}`;
+    }
+  }, [currentUserId, listingId, sellerId, supabase, router, sellerPhone]);
+
+  const handleEmailClick = useCallback(async () => {
+    if (!currentUserId) {
+      router.push(`/login?next=/listing/${listingId}`);
+      return;
+    }
+
+    await trackLead(supabase, {
+      listingId,
+      sellerId,
+      buyerId: currentUserId,
+      leadType: 'email_click',
+    });
+
+    // Open email
+    if (sellerEmail) {
+      window.location.href = `mailto:${sellerEmail}`;
+    }
+  }, [currentUserId, listingId, sellerId, supabase, router, sellerEmail]);
+
   const handleBuyNow = useCallback(() => {
     if (!currentUserId) {
       router.push(`/login?next=/listing/${listingId}`);
@@ -180,6 +218,24 @@ export function ListingCTASection({
                   className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-orange-200 transition hover:bg-orange-600"
                 >
                   📞 Call {sellerPhone}
+                </button>
+              ) : null}
+
+              {config.allow_contact && sellerPhone ? (
+                <button
+                  onClick={handleWhatsAppClick}
+                  className="w-full rounded-full border-2 border-green-600 px-6 py-3 text-sm font-bold text-green-600 transition hover:bg-green-50"
+                >
+                  💬 WhatsApp
+                </button>
+              ) : null}
+
+              {config.allow_contact && sellerEmail ? (
+                <button
+                  onClick={handleEmailClick}
+                  className="w-full rounded-full border-2 border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                >
+                  ✉️ Email
                 </button>
               ) : null}
 

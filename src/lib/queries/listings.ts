@@ -211,8 +211,12 @@ export async function getListingById(supabase: SupabaseClient, id: string) {
   if (error) return null;
 
   const listing = data as unknown as ListingWithRelations;
-  const counts = await getFavoriteCounts(supabase, [id]);
-  (listing as any).favorite_count = counts[id] ?? 0;
+  const [favCounts, shareCounts] = await Promise.all([
+    getFavoriteCounts(supabase, [id]),
+    getShareCounts(supabase, [id]),
+  ]);
+  (listing as any).favorite_count = favCounts[id] ?? 0;
+  (listing as any).share_count = shareCounts[id] ?? 0;
 
   return listing;
 }
@@ -285,6 +289,25 @@ export async function getFavoriteCounts(
   const counts: Record<string, number> = {};
   (data ?? []).forEach((row) => {
     counts[row.listing_id] = row.favorite_count;
+  });
+
+  return counts;
+}
+
+export async function getShareCounts(
+  supabase: SupabaseClient,
+  listingIds: string[]
+): Promise<Record<string, number>> {
+  if (listingIds.length === 0) return {};
+
+  const { data } = await supabase
+    .from("listing_share_counts")
+    .select("listing_id, share_count")
+    .in("listing_id", listingIds);
+
+  const counts: Record<string, number> = {};
+  (data ?? []).forEach((row) => {
+    counts[row.listing_id] = row.share_count;
   });
 
   return counts;
