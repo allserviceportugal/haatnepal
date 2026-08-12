@@ -124,6 +124,8 @@ export async function trackLead(
       | 'contact_revealed'
       | 'phone_click'
       | 'email_click'
+      | 'whatsapp_click'
+      | 'share_click'
       | 'message_started'
       | 'offer_made'
       | 'favorite';

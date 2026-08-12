@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getOrCreateConversation } from "@/lib/queries/conversations";
+import { trackLead } from "@/lib/queries/transaction_config";
 
 export type ChatActionState = { error?: string };
 
@@ -26,8 +27,20 @@ export async function startConversationAction(listingId: string) {
   if (!listing) redirect(`/listing/${listingId}`);
   if (listing.seller_id === user.id) redirect(`/listing/${listingId}`);
 
-  const conversationId = await getOrCreateConversation(supabase, listingId, user.id, listing.seller_id);
-  if (!conversationId) redirect(`/listing/${listingId}`);
+  const conversationResult = await getOrCreateConversation(supabase, listingId, user.id, listing.seller_id);
+  if (!conversationResult) redirect(`/listing/${listingId}`);
+
+  const { id: conversationId, isNew } = conversationResult;
+
+  if (isNew) {
+    await trackLead(supabase, {
+      listingId,
+      sellerId: listing.seller_id,
+      buyerId: user.id,
+      leadType: 'message_started',
+      conversationId,
+    });
+  }
 
   redirect(`/dashboard/messages/${conversationId}`);
 }
@@ -118,6 +131,22 @@ export async function makeOfferAction(
     created_by: user.id,
     status: "pending",
   });
+
+  const { data: listing } = await supabase
+    .from("listings")
+    .select("seller_id")
+    .eq("id", listingId)
+    .single();
+
+  if (listing) {
+    await trackLead(supabase, {
+      listingId,
+      sellerId: listing.seller_id,
+      buyerId: user.id,
+      leadType: 'offer_made',
+      conversationId,
+    });
+  }
 
   revalidatePath(`/dashboard/messages/${conversationId}`);
   return {};

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { TransactionConfig } from '@/lib/queries/transaction_config';
 import { trackLead } from '@/lib/queries/transaction_config';
@@ -37,6 +37,7 @@ export function ListingCTASection({
   const router = useRouter();
   const { addItem } = useCart();
   const supabase = createClient();
+  const [phoneRevealed, setPhoneRevealed] = useState(false);
 
   const handleContactReveal = useCallback(async () => {
     if (!currentUserId) {
@@ -213,12 +214,24 @@ export function ListingCTASection({
             config.default_transaction_mode === 'hybrid') && (
             <>
               {config.allow_contact && sellerPhone ? (
-                <button
-                  onClick={handlePhoneClick}
-                  className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-orange-200 transition hover:bg-orange-600"
-                >
-                  📞 Call {sellerPhone}
-                </button>
+                phoneRevealed ? (
+                  <button
+                    onClick={handlePhoneClick}
+                    className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-orange-200 transition hover:bg-orange-600"
+                  >
+                    📞 Call {sellerPhone}
+                  </button>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      await handleContactReveal();
+                      setPhoneRevealed(true);
+                    }}
+                    className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-orange-200 transition hover:bg-orange-600"
+                  >
+                    📞 Show phone number
+                  </button>
+                )
               ) : null}
 
               {config.allow_contact && sellerPhone ? (

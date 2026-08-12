@@ -6,7 +6,7 @@ export async function getOrCreateConversation(
   listingId: string,
   buyerId: string,
   sellerId: string
-): Promise<string | null> {
+): Promise<{ id: string; isNew: boolean } | null> {
   const { data: existing } = await supabase
     .from("conversations")
     .select("id")
@@ -14,7 +14,7 @@ export async function getOrCreateConversation(
     .eq("buyer_id", buyerId)
     .maybeSingle();
 
-  if (existing) return existing.id;
+  if (existing) return { id: existing.id, isNew: false };
 
   const { data: created, error } = await supabase
     .from("conversations")
@@ -23,7 +23,7 @@ export async function getOrCreateConversation(
     .single();
 
   if (error || !created) return null;
-  return created.id;
+  return { id: created.id, isNew: true };
 }
 
 export async function getConversationsForUser(
