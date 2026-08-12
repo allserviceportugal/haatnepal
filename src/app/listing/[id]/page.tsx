@@ -607,6 +607,38 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               </div>
             </div>
           )}
+
+          {/* Posted and Expiry Dates */}
+          <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  Posted
+                </p>
+                <p className="mt-2 text-sm text-slate-900">
+                  {new Date(listing.created_at).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  Expires
+                </p>
+                <p className="mt-2 text-sm text-slate-900">
+                  {listing.expires_at
+                    ? new Date(listing.expires_at).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })
+                    : "No expiry"}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </main>
