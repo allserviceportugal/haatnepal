@@ -1146,6 +1146,103 @@ export function ListingForm({
         </div>
       )}
 
+      {/* E-Commerce Fields (for direct-purchase / hybrid listings) */}
+      <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <h3 className="text-sm font-semibold text-slate-700">Product Details (Optional)</h3>
+
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600">SKU</label>
+            <input
+              type="text"
+              name="sku"
+              maxLength={100}
+              placeholder="Product SKU"
+              defaultValue={(state.formValues?.sku as string) ?? defaultValues?.sku ?? ""}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600">Stock Qty</label>
+            <input
+              type="number"
+              name="stockQuantity"
+              min="0"
+              placeholder="Unlimited if blank"
+              defaultValue={(state.formValues?.stockQuantity as string) ?? defaultValues?.stockQuantity ?? ""}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600">Delivery Fee (Rs)</label>
+            <input
+              type="number"
+              name="deliveryFee"
+              min="0"
+              step="0.01"
+              placeholder="0 if free"
+              defaultValue={(state.formValues?.deliveryFee as string) ?? defaultValues?.deliveryFee ?? ""}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600">Delivery Time (Days)</label>
+            <input
+              type="number"
+              name="deliveryTimeDays"
+              min="1"
+              placeholder="e.g. 2"
+              defaultValue={(state.formValues?.deliveryTimeDays as string) ?? defaultValues?.deliveryTimeDays ?? ""}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600">Warranty</label>
+            <input
+              type="text"
+              name="warrantyPeriod"
+              maxLength={100}
+              placeholder="e.g. 1 year"
+              defaultValue={(state.formValues?.warrantyPeriod as string) ?? defaultValues?.warrantyPeriod ?? ""}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600">Return Policy</label>
+            <input
+              type="text"
+              name="returnPolicy"
+              maxLength={100}
+              placeholder="e.g. 7 days"
+              defaultValue={(state.formValues?.returnPolicy as string) ?? defaultValues?.returnPolicy ?? ""}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-600">Payment Methods</label>
+          <div className="mt-2 space-y-2">
+            {["cash", "transfer", "card"].map((method) => (
+              <label key={method} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name={`paymentMethod_${method}`}
+                  defaultChecked={(state.formValues?.[`paymentMethod_${method}` as never] as boolean) ?? defaultValues?.[`paymentMethod_${method}` as never] ?? false}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                <span className="text-xs text-slate-600 capitalize">{method === "cash" ? "Cash" : method === "transfer" ? "Bank Transfer" : "Card"}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div>
         <label className="block text-sm font-semibold text-slate-700">Photos</label>
         <div className="mt-2">
