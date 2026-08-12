@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { NEPAL_DISTRICTS } from "@/lib/constants/locations";
 import { ImageUploader } from "./image-uploader";
 import type { ListingActionState } from "@/lib/actions/listings";
@@ -29,6 +29,12 @@ export function ListingForm({
   submitLabel,
 }: Props) {
   const [state, formAction, isPending] = useActionState(action, {});
+  const [formKey, setFormKey] = useState(0);
+
+  useEffect(() => {
+    setFormKey((k) => k + 1);
+  }, [state]);
+
   const [registrationYear, setRegistrationYear] = useState<string>((defaultValues?.registration_year as any) ?? "");
   const [manufacturingYear, setManufacturingYear] = useState<string>((defaultValues?.manufacturing_year as any) ?? "");
   const [bluebookStatus, setBluebookStatus] = useState<string>((defaultValues?.bluebook_status as any) ?? "");
@@ -234,7 +240,7 @@ export function ListingForm({
     : undefined;
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form key={formKey} action={formAction} className="space-y-6">
       {state.error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {state.error}
@@ -334,6 +340,7 @@ export function ListingForm({
               >
                 <option value="new">New</option>
                 <option value="used">Used</option>
+                <option value="not_applicable">Not applicable</option>
               </select>
             </div>
 

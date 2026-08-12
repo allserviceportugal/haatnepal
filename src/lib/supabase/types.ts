@@ -1,4 +1,4 @@
-export type ListingCondition = "new" | "used";
+export type ListingCondition = "new" | "used" | "not_applicable";
 export type ListingType = "classified" | "fixed_price";
 export type ListingStatus = "draft" | "active" | "sold" | "expired" | "removed";
 export type AccountType = "individual" | "business";

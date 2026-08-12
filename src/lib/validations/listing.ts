@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const listingConditions = ["new", "used"] as const;
+export const listingConditions = ["new", "used", "not_applicable"] as const;
 export const listingTypes = ["classified", "fixed_price"] as const;
 export const landUnitSystems = ["ropani_system", "bigha_system", "sqft", "sqm"] as const;
 export const salaryPeriods = ["monthly", "yearly", "hourly", "daily"] as const;

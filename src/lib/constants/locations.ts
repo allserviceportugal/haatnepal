@@ -21,6 +21,7 @@ export const NEPAL_DISTRICTS = [
   "Syangja",
   "Gorkha",
   "Baglung",
+  "Online / Not specified",
 ] as const;
 
 export type NepalDistrict = (typeof NEPAL_DISTRICTS)[number];
