@@ -264,7 +264,12 @@ export async function loginAction(
 
     const nextPath = next && typeof next === "string" && next.startsWith("/") ? next : "/";
     redirect(nextPath);
-  } catch (error) {
+  } catch (error: unknown) {
+    // redirect() throws an error internally; check if this is a redirect error by looking for its marker properties
+    if (error && typeof error === "object" && ("digest" in error || "status" in error)) {
+      // This is likely a redirect error from Next.js, so re-throw it
+      throw error;
+    }
     console.error("[LOGIN] Error:", error);
     return {
       error: "An error occurred. Please try again.",
