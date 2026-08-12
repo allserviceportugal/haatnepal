@@ -485,3 +485,63 @@ export async function featureListingAction(
 
   return {};
 }
+
+export async function purchaseFeatureBoostAction(
+  listingId: string,
+  _prevState: FeatureListingState,
+  _formData: FormData
+): Promise<FeatureListingState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in." };
+  }
+
+  const { data: listing } = await supabase
+    .from("listings")
+    .select("id, seller_id")
+    .eq("id", listingId)
+    .eq("seller_id", user.id)
+    .single();
+
+  if (!listing) {
+    return { error: "Listing not found." };
+  }
+
+  // Insert purchase record (placeholder payment, status='completed')
+  const { error: purchaseError } = await supabase
+    .from("listing_feature_purchases")
+    .insert({
+      listing_id: listingId,
+      seller_id: user.id,
+      amount_npr: 44,
+      status: "completed",
+      payment_reference: null,
+    });
+
+  if (purchaseError) {
+    console.error("[PURCHASE_FEATURE] Insert failed:", purchaseError);
+    return { error: "Failed to purchase feature boost" };
+  }
+
+  // Set featured_at/featured_until (same as free path)
+  const featuredAt = new Date();
+  const featuredUntil = new Date(featuredAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  await supabase
+    .from("listings")
+    .update({
+      featured_at: featuredAt.toISOString(),
+      featured_until: featuredUntil.toISOString(),
+    })
+    .eq("id", listingId)
+    .eq("seller_id", user.id);
+
+  revalidatePath(`/listing/${listingId}`);
+  revalidatePath("/dashboard/listings");
+
+  return {};
+}

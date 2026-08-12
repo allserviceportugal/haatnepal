@@ -99,7 +99,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
   // Get transaction config for this listing
   const transactionConfig = await getListingTransactionConfig(supabase, id, user?.id);
 
-  let canFeature = false;
+  let canFeatureFree = false;
   if (isOwner) {
     const { data: profile } = await supabase
       .from("profiles")
@@ -109,7 +109,23 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     const plan = (
       profile as unknown as { subscription_plans: { monthly_featured_quota: number | null } | null } | null
     )?.subscription_plans;
-    canFeature = !plan || plan.monthly_featured_quota !== 0;
+
+    const quota = plan?.monthly_featured_quota ?? null;
+    if (quota === null) {
+      // Unlimited (Custom plan)
+      canFeatureFree = true;
+    } else if (quota === 0) {
+      // No free features (Normal, Business plans)
+      canFeatureFree = false;
+    } else {
+      // Finite quota (Pro plan with 20) - count this month's featured listings
+      const { count } = await supabase
+        .from("listings")
+        .select("id", { count: "exact", head: true })
+        .eq("seller_id", user.id)
+        .gte("featured_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
+      canFeatureFree = (count ?? 0) < quota;
+    }
   }
 
   let isFavorited = false;
@@ -441,7 +457,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                   <FeatureListingButton
                     listingId={listing.id}
                     featuredUntil={listing.featured_until}
-                    canFeature={canFeature}
+                    canFeatureFree={canFeatureFree}
                   />
                 </>
               ) : (
