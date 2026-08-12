@@ -83,13 +83,50 @@ export async function checkoutAction(
 
     if (orderError || !order) continue;
 
-    await supabase.from("order_items").insert(
-      sellerListings.map((listing) => ({
-        order_id: order.id,
-        listing_id: listing.id,
-        price_at_order: listing.price,
-      }))
-    );
+    // Insert order items and handle stock management
+    const orderItemsToInsert = sellerListings.map((listing) => ({
+      order_id: order.id,
+      listing_id: listing.id,
+      price_at_order: listing.price,
+    }));
+
+    const { error: itemsError } = await supabase
+      .from("order_items")
+      .insert(orderItemsToInsert);
+
+    if (itemsError) continue;
+
+    // Handle stock management: decrement stock for listings that have it tracked
+    for (const listing of sellerListings) {
+      const { data: listingData } = await supabase
+        .from("listings")
+        .select("stock_quantity, units_sold")
+        .eq("id", listing.id)
+        .single();
+
+      if (listingData && listingData.stock_quantity !== null && listingData.stock_quantity > 0) {
+        // Decrement stock and increment units_sold atomically
+        const { error: updateError } = await supabase
+          .from("listings")
+          .update({
+            stock_quantity: listingData.stock_quantity - 1,
+            units_sold: (listingData.units_sold ?? 0) + 1,
+          })
+          .eq("id", listing.id);
+
+        if (updateError) {
+          console.error(`Failed to update stock for listing ${listing.id}:`, updateError);
+        }
+      } else {
+        // No stock tracking, just increment units_sold
+        await supabase
+          .from("listings")
+          .update({
+            units_sold: (listingData?.units_sold ?? 0) + 1,
+          })
+          .eq("id", listing.id);
+      }
+    }
 
     createdOrderIds.push(order.id);
   }
