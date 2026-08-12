@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { verifyCodeAction, resendOtpAction } from "@/lib/actions/auth";
 import { ErrorBanner } from "@/components/error-banner";
 
@@ -10,8 +10,10 @@ interface VerifyCodeFormProps {
 }
 
 export function VerifyCodeForm({ email, onVerified }: VerifyCodeFormProps) {
-  const [state, formAction] = useActionState(verifyCodeAction, {});
-  const [resendState, resendAction] = useActionState(resendOtpAction, {});
+  const [state, formAction, isVerifyPending] = useActionState(verifyCodeAction, {});
+  const [resendState, resendAction, isResendPending] = useActionState(resendOtpAction, {});
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendMessageTime, setResendMessageTime] = useState(0);
 
   // Call onVerified callback after successful verification
   useEffect(() => {
@@ -20,6 +22,36 @@ export function VerifyCodeForm({ email, onVerified }: VerifyCodeFormProps) {
       return () => clearTimeout(timer);
     }
   }, [state.step, state.success, onVerified]);
+
+  // Manage resend cooldown countdown (60 seconds)
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (resendCooldown > 0) {
+      interval = setInterval(() => {
+        setResendCooldown((prev) => Math.max(0, prev - 1));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendCooldown]);
+
+  // Auto-hide resend success message after 3 seconds
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    if (resendState.success && resendMessageTime === 0) {
+      setResendMessageTime(Date.now());
+      timeout = setTimeout(() => {
+        setResendMessageTime(0);
+      }, 3000);
+    }
+    return () => clearTimeout(timeout);
+  }, [resendState.success, resendMessageTime]);
+
+  // Start cooldown when resend succeeds
+  useEffect(() => {
+    if (resendState.success) {
+      setResendCooldown(60);
+    }
+  }, [resendState.success]);
 
   if (state.step === "success" && state.success) {
     return (
@@ -62,18 +94,30 @@ export function VerifyCodeForm({ email, onVerified }: VerifyCodeFormProps) {
             type="text"
             placeholder="000000"
             maxLength={6}
+            autoComplete="one-time-code"
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center text-2xl tracking-widest text-slate-900 placeholder-slate-400 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
             required
+            disabled={isVerifyPending}
           />
         </div>
 
-        {state.error && <ErrorBanner message={state.error} />}
+        {state.error && (
+          <div>
+            <ErrorBanner message={state.error} />
+            {state.attemptsRemaining !== undefined && state.attemptsRemaining > 0 && (
+              <p className="mt-2 text-center text-xs text-slate-600">
+                {state.attemptsRemaining} attempt{state.attemptsRemaining === 1 ? '' : 's'} remaining
+              </p>
+            )}
+          </div>
+        )}
 
         <button
           type="submit"
-          className="w-full rounded-lg bg-orange-600 px-4 py-2.5 font-semibold text-white hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+          disabled={isVerifyPending}
+          className="w-full rounded-lg bg-orange-600 px-4 py-2.5 font-semibold text-white hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Verify email
+          {isVerifyPending ? "Verifying..." : "Verify email"}
         </button>
       </form>
 
@@ -81,13 +125,18 @@ export function VerifyCodeForm({ email, onVerified }: VerifyCodeFormProps) {
         <input type="hidden" name="email" value={email} />
         <button
           type="submit"
-          className="text-sm font-semibold text-orange-600 hover:text-orange-700"
+          disabled={isResendPending || resendCooldown > 0}
+          className="text-sm font-semibold text-orange-600 hover:text-orange-700 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Resend code
+          {resendCooldown > 0
+            ? `Resend available in ${resendCooldown}s`
+            : isResendPending
+            ? "Sending..."
+            : "Resend code"}
         </button>
       </form>
 
-      {resendState.success && (
+      {resendMessageTime > 0 && resendState.success && (
         <p className="text-center text-sm text-green-600">
           Code resent to {email}
         </p>

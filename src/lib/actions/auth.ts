@@ -22,6 +22,7 @@ export type AuthActionState = {
   email?: string;
   success?: boolean;
   requireLogin?: boolean;
+  attemptsRemaining?: number;
   formValues?: {
     displayName?: string;
     email?: string;
@@ -155,7 +156,7 @@ export async function signUpAction(
     };
   }
 
-  // Create auth user WITHOUT email confirmation requirement
+  // Create auth user — profile is created atomically via trigger
   console.log("[SIGNUP] Creating auth user:", email);
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
@@ -165,12 +166,25 @@ export async function signUpAction(
         display_name: displayName,
         phone,
         account_type: accountType,
+        plan_key: planKey,
       },
-      emailRedirectTo: undefined, // Don't use Supabase email confirmation
+      emailRedirectTo: undefined,
     },
   });
 
   if (authError || !authData.user) {
+    // Detect phone collision race condition (trigger tried to create profile but failed)
+    const phoneRaceError = authError?.message?.includes('profiles_phone_key') ||
+                          authError?.message?.includes('unique constraint');
+    if (phoneRaceError) {
+      console.error("[SIGNUP] Phone collision race detected:", authError?.message);
+      return {
+        error: "This phone number is already registered. Please use a different number.",
+        step: 'email',
+        formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
+      };
+    }
+
     console.error("[SIGNUP] Auth creation failed:", authError?.message);
     return {
       error: `Failed to create account: ${authError?.message || "unknown error"}`,
@@ -179,53 +193,9 @@ export async function signUpAction(
     };
   }
 
-  console.log("[SIGNUP] Auth user created:", authData.user.id);
+  console.log("[SIGNUP] Auth user created (profile created by trigger):", authData.user.id);
 
-  // Create or update profile with email_confirmed = true (auto-confirm)
-  console.log("[SIGNUP] Creating/updating profile...");
   const adminClient = createAdminClient();
-
-  // Fetch plan ID if a non-default plan was selected
-  let subscriptionPlanId: string | null = null;
-  if (planKey && planKey !== 'normal') {
-    const { data: plan } = await adminClient
-      .from("subscription_plans")
-      .select("id")
-      .eq("key", planKey)
-      .single();
-    subscriptionPlanId = plan?.id ?? null;
-  }
-
-  // Ensure account_type is valid enum value
-  const validAccountType = (accountType === 'business' ? 'business' : 'individual');
-
-  const profileUpdate: any = {
-    id: authData.user.id,
-    display_name: displayName,
-    email,
-    phone,
-    account_type: validAccountType,
-    phone_verified: false,
-    password_set: true,
-    email_confirmed: false,
-  };
-
-  if (subscriptionPlanId) {
-    profileUpdate.subscription_plan_id = subscriptionPlanId;
-  }
-
-  const { error: profileError } = await adminClient.from("profiles").upsert(profileUpdate);
-
-  if (profileError) {
-    console.error("[SIGNUP] Profile creation failed:", JSON.stringify(profileError));
-    return {
-      error: `Profile creation failed: ${profileError?.message || "unknown error"}. Details: ${JSON.stringify(profileError)}`,
-      step: 'email',
-      formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
-    };
-  }
-
-  console.log("[SIGNUP] Profile created, generating OTP...");
 
   // Generate OTP code with retry on collision
   let code: string;
@@ -616,6 +586,7 @@ export async function verifyCodeAction(
           error: "Too many attempts. Please request a new code.",
           step: 'verify',
           email,
+          attemptsRemaining: 0,
         };
       }
 
@@ -623,30 +594,37 @@ export async function verifyCodeAction(
         error: "Invalid or expired code. Please try again.",
         step: 'verify',
         email,
+        attemptsRemaining: Math.max(0, 5 - currentAttempts - 1),
       };
     }
 
-    // Mark code as verified
-    await admin
+    // Mark code as verified (idempotent: only update if still unverified)
+    const { data: updatedRow } = await admin
       .from("otp_codes")
       .update({ verified_at: new Date().toISOString() })
-      .eq("id", otpRow.id);
+      .eq("id", otpRow.id)
+      .is("verified_at", null)
+      .select("id");
 
-    // Update profile email_confirmed
-    await admin
-      .from("profiles")
-      .update({ email_confirmed: true })
-      .eq("email", email);
+    // Only send welcome email and update profile if we actually updated the row
+    // (second concurrent submit will see zero rows affected and skip side effects)
+    if (updatedRow && updatedRow.length > 0) {
+      // Update profile email_confirmed
+      await admin
+        .from("profiles")
+        .update({ email_confirmed: true })
+        .eq("email", email);
 
-    // Send welcome email (without password)
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("display_name")
-      .eq("email", email)
-      .single();
+      // Send welcome email (without password)
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("display_name")
+        .eq("email", email)
+        .single();
 
-    if (profile) {
-      await sendWelcomeEmail(email, profile.display_name);
+      if (profile) {
+        await sendWelcomeEmail(email, profile.display_name);
+      }
     }
 
     // Check if user has an active session
@@ -680,7 +658,7 @@ export async function verifyCodeAction(
 }
 
 /**
- * RESEND OTP: Send a new OTP code
+ * RESEND OTP: Send a new OTP code with rate-limiting and invalidation
  */
 export async function resendOtpAction(
   _prevState: AuthActionState,
@@ -702,27 +680,60 @@ export async function resendOtpAction(
   try {
     const admin = createAdminClient();
 
-    // Get user's display name
+    // Get user profile and check if already verified
     const { data: profile } = await admin
       .from("profiles")
-      .select("display_name")
+      .select("display_name, email_confirmed")
       .eq("email", email)
       .single();
 
-    if (!profile) {
-      return {
-        error: "User not found.",
-        step: 'verify',
-        email,
-      };
+    // Generic response whether account exists or not (prevents enumeration)
+    const genericResponse = {
+      success: true,
+      step: 'verify' as const,
+      email,
+    };
+
+    // Account doesn't exist or already verified — return generic success
+    if (!profile || profile.email_confirmed) {
+      console.log(`[RESEND_OTP] Skipped (not found or already verified): ${email}`);
+      return genericResponse;
     }
+
+    // Check rate-limit: has a code been sent in the last 60 seconds?
+    const { data: recentCode } = await admin
+      .from("otp_codes")
+      .select("created_at")
+      .eq("email", email)
+      .is("verified_at", null)
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (recentCode) {
+      const secondsSinceLastCode = (Date.now() - new Date(recentCode.created_at).getTime()) / 1000;
+      if (secondsSinceLastCode < 60) {
+        console.log(`[RESEND_OTP] Rate limited (${secondsSinceLastCode.toFixed(0)}s): ${email}`);
+        // Return generic response to prevent timing-based enumeration
+        return genericResponse;
+      }
+    }
+
+    // Invalidate all prior unverified codes for this email before issuing a new one
+    await admin
+      .from("otp_codes")
+      .update({ expires_at: new Date().toISOString() })
+      .eq("email", email)
+      .is("verified_at", null);
 
     // Generate and insert new OTP with retry on collision
     try {
       const otpResult = await insertOtpCodeWithRetry(admin, email);
       await sendOtpVerificationEmail(email, profile.display_name, otpResult.code);
+      console.log(`[RESEND_OTP] Code sent: ${email}`);
     } catch (err) {
-      console.error("[RESEND_OTP] OTP generation failed:", err);
+      console.error("[RESEND_OTP] OTP generation or email failed:", err);
       return {
         error: "Failed to resend code. Please try again.",
         step: 'verify',
@@ -730,11 +741,7 @@ export async function resendOtpAction(
       };
     }
 
-    return {
-      success: true,
-      step: 'verify',
-      email,
-    };
+    return genericResponse;
   } catch (error: unknown) {
     console.error("[RESEND_OTP] Error:", error);
     return {

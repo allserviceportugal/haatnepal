@@ -53,39 +53,45 @@ export function SignupForm({ next }: { next?: string }) {
       )}
 
       <div>
-        <label className="block text-sm font-semibold text-slate-700">Full Name</label>
+        <label htmlFor="displayName" className="block text-sm font-semibold text-slate-700">Full Name</label>
         <input
+          id="displayName"
           name="displayName"
           required
           minLength={2}
           maxLength={50}
           placeholder="Your name"
+          autoComplete="name"
           defaultValue={state.formValues?.displayName || ""}
           className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-slate-700">Email Address</label>
+        <label htmlFor="email" className="block text-sm font-semibold text-slate-700">Email Address</label>
         <input
+          id="email"
           type="email"
           name="email"
           required
           placeholder="you@example.com"
+          autoComplete="email"
           defaultValue={state.formValues?.email || ""}
           className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-slate-700">Password</label>
+        <label htmlFor="password" className="block text-sm font-semibold text-slate-700">Password</label>
         <div className="relative mt-2">
           <input
+            id="password"
             type={showPassword ? "text" : "password"}
             name="password"
             required
             minLength={8}
             placeholder="At least 8 characters"
+            autoComplete="new-password"
             className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-10 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
           />
           <button
@@ -100,14 +106,16 @@ export function SignupForm({ next }: { next?: string }) {
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-slate-700">Confirm Password</label>
+        <label htmlFor="confirmPassword" className="block text-sm font-semibold text-slate-700">Confirm Password</label>
         <div className="relative mt-2">
           <input
+            id="confirmPassword"
             type={showConfirmPassword ? "text" : "password"}
             name="confirmPassword"
             required
             minLength={8}
             placeholder="Repeat your password"
+            autoComplete="new-password"
             className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-10 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
           />
           <button
@@ -121,17 +129,21 @@ export function SignupForm({ next }: { next?: string }) {
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-slate-700">Phone Number</label>
+        <label htmlFor="phone" className="block text-sm font-semibold text-slate-700">Phone Number</label>
         <input
+          id="phone"
           type="tel"
           name="phone"
           required
           inputMode="numeric"
+          pattern="[6789][0-9]{9}"
+          maxLength={10}
           placeholder="98XXXXXXXX"
+          autoComplete="tel"
           defaultValue={state.formValues?.phone || ""}
           className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
         />
-        <p className="mt-1 text-xs text-slate-500">Used for seller contact. Compulsory.</p>
+        <p className="mt-1 text-xs text-slate-500">10 digits starting with 6, 7, 8, or 9 (e.g., 9841234567)</p>
       </div>
 
       <div>

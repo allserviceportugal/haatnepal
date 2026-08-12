@@ -1,0 +1,169 @@
+
+> marketplace-nepal@0.1.0 deploy
+> opennextjs-cloudflare build && opennextjs-cloudflare deploy
+
+
+┌─────────────────────────────┐
+│ OpenNext — Cloudflare build │
+└─────────────────────────────┘
+
+App directory: /Users/lastvoyage/marketplace-nepal
+Next.js version : 16.3.0
+@opennextjs/cloudflare version: 1.20.2
+@opennextjs/aws version: 4.1.0
+workerd compatibility_date: 2026-08-08
+
+┌─────────────────────────────────┐
+│ OpenNext — Building Next.js app │
+└─────────────────────────────────┘
+
+
+> marketplace-nepal@0.1.0 build
+> next build --webpack
+
+▲ Next.js 16.3.0 (webpack)
+- Environments: .env.local
+✓ Running next.config.ts took 1120ms
+Using secrets defined in .dev.vars
+
+  Creating an optimized production build ...
+Using secrets defined in .dev.vars
+Using secrets defined in .dev.vars
+Using secrets defined in .dev.vars
+✓ Compiled successfully in 10.1s
+  Running TypeScript ...
+  Finished TypeScript in 3.4s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/54) ...
+  Generating static pages using 7 workers (13/54) 
+  Generating static pages using 7 workers (26/54) 
+  Generating static pages using 7 workers (40/54) 
+✓ Generating static pages using 7 workers (54/54) in 503ms
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /about
+├ ƒ /admin
+├ ƒ /admin/listings
+├ ƒ /admin/listings/[id]
+├ ƒ /admin/reports
+├ ƒ /admin/verifications
+├ ƒ /admin/verifications/[id]
+├ ƒ /advertise
+├ ƒ /api/auth/send-email
+├ ƒ /api/listings/[id]/view
+├ ƒ /api/newsletter/send-blog
+├ ƒ /api/newsletter/send-featured
+├ ƒ /api/newsletter/send-top-sellers
+├ ƒ /api/newsletter/send-weekly-digest
+├ ƒ /api/newsletter/subscribe
+├ ƒ /api/newsletter/sync-users
+├ ƒ /auth/reset-password
+├ ƒ /blog
+├ ƒ /blog/[slug]
+├ ƒ /buyer-protection
+├ ƒ /c/[categorySlug]
+├ ƒ /cart
+├ ƒ /checkout
+├ ƒ /contact
+├ ƒ /cookies
+├ ƒ /dashboard
+├ ƒ /dashboard/favorites
+├ ƒ /dashboard/listings
+├ ƒ /dashboard/listings/[id]/applicants
+├ ƒ /dashboard/listings/[id]/metrics
+├ ƒ /dashboard/messages
+├ ƒ /dashboard/messages/[conversationId]
+├ ƒ /dashboard/orders
+├ ƒ /dashboard/plan
+├ ƒ /dashboard/plan/verify/[planKey]
+├ ƒ /dashboard/profile
+├ ƒ /disclaimer
+├ ƒ /faq
+├ ƒ /forgot-password
+├ ƒ /listing/[id]
+├ ƒ /listing/[id]/edit
+├ ƒ /listing/new
+├ ƒ /login
+├ ƒ /pricing
+├ ƒ /privacy
+├ ƒ /returns-refunds
+├ ○ /robots.txt
+├ ƒ /safety-guidelines
+├ ƒ /search
+├ ƒ /seller-guidelines
+├ ƒ /shipping-delivery
+├ ƒ /signup
+├ ○ /sitemap.xml
+├ ƒ /terms
+└ ƒ /u/[userId]
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+
+┌──────────────────────────────┐
+│ OpenNext — Generating bundle │
+└──────────────────────────────┘
+
+Bundling middleware function...
+Bundling static assets...
+Bundling cache assets...
+Building server function: default...
+Applying code patches: 4.273s
+# copyPackageTemplateFiles
+[35m⚙️ Bundling the OpenNext server...
+[0m
+[35mWorker saved in `.open-next/worker.js` 🚀
+[0m
+OpenNext build complete.
+
+┌──────────────────────────────┐
+│ OpenNext — Cloudflare deploy │
+└──────────────────────────────┘
+
+Using secrets defined in .dev.vars
+Incremental cache does not need populating
+Tag cache does not need populating
+
+ ⛅️ wrangler 4.120.0
+────────────────────
+🌀 Building list of assets...
+✨ Read 169 files from the assets directory /Users/lastvoyage/marketplace-nepal/.open-next/assets
+🌀 Starting asset upload...
+🌀 Found 9 new or modified static assets to upload. Proceeding with upload...
++ /BUILD_ID
++ /_next/static/chunks/app/login/page-58d2aa5dd032276f.js
++ /_next/static/chunks/4912-0b606176d40cd43c.js
++ /_next/static/chunks/app/forgot-password/page-312238f5ff3d1d86.js
++ /_next/static/chunks/app/checkout/page-b4ced6948db80eea.js
++ /_next/static/chunks/app/listing/[id]/page-7f686d0c459e0ce1.js
++ /_next/static/chunks/app/auth/reset-password/page-59bcd06bbb5164a8.js
++ /_next/static/chunks/app/dashboard/profile/page-b88f6f0d09521cd4.js
++ /_next/static/css/7f1a84670423a4bc.css
+Uploaded 3 of 9 assets
+Uploaded 6 of 9 assets
+Uploaded 9 of 9 assets
+✨ Success! Uploaded 9 files (80 already uploaded) (1.67 sec)
+
+Total Upload: 8617.64 KiB / gzip: 1677.02 KiB
+Worker Startup Time: 31 ms
+Your Worker has access to the following bindings:
+Binding                                                                             Resource                  
+env.WORKER_SELF_REFERENCE (haatnepal)                                               Worker                    
+env.IMAGES                                                                          Images                    
+env.ASSETS                                                                          Assets                    
+env.NEXT_PUBLIC_SUPABASE_URL ("https://bmlfzeoqveysbzrfzmpb.supabase...")           Environment Variable      
+env.NEXT_PUBLIC_SUPABASE_ANON_KEY ("sb_publishable_6A4Mn0giqkquOJQX3SlZ9g...")      Environment Variable      
+env.NEXT_PUBLIC_APP_URL ("https://haatnepal.pages.dev")                             Environment Variable      
+
+Uploaded haatnepal (12.18 sec)
+Deployed haatnepal triggers (2.41 sec)
+  https://haatnepal.shrill-sea-82d6.workers.dev
+Current Version ID: 297a59d4-28cc-4427-8759-4ba3ccc2f839
+(node:15874) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
