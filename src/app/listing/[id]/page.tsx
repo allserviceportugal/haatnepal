@@ -15,6 +15,7 @@ import { startConversationAction } from "@/lib/actions/conversations";
 import { withdrawJobApplicationAction } from "@/lib/actions/job-applications";
 import { JobApplicationForm } from "@/components/job-application-form";
 import { ViewTracker } from "@/components/view-tracker";
+import { ListingImageGallery } from "@/components/listing-image-gallery";
 import { formatPrice, formatSalary, timeAgo, isWithinEditWindow } from "@/lib/format";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -169,29 +170,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
       {!isOwner && <ViewTracker listingId={listing.id} />}
       <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
         <div>
-          <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-slate-100">
-            {images[0] ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={images[0].url} alt={listing.title} className="h-[420px] w-full object-cover" />
-            ) : (
-              <div className="flex h-[420px] w-full items-center justify-center text-slate-400">
-                No photos yet
-              </div>
-            )}
-          </div>
-          {images.length > 1 && (
-            <div className="mt-3 grid grid-cols-4 gap-3 sm:grid-cols-6">
-              {images.slice(1).map((image) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={image.id}
-                  src={image.url}
-                  alt={listing.title}
-                  className="h-20 w-full rounded-xl object-cover"
-                />
-              ))}
-            </div>
-          )}
+          <ListingImageGallery images={images} alt={listing.title} />
 
           <div className="mt-8 rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900">Description</h2>
