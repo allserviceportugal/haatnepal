@@ -34,30 +34,7 @@ export function SignupForm({ next }: { next?: string }) {
             We've sent a 6-digit code to <strong className="break-all">{state.email}</strong>
           </p>
         </div>
-        <VerifyCodeForm email={state.email} />
-      </div>
-    );
-  }
-
-  // Success state - auto-redirect to homepage
-  if (state.success && state.step === 'success') {
-    return (
-      <div className="space-y-6 text-center">
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-6 py-12">
-          <div className="mb-6 text-5xl animate-pulse">✓</div>
-          <h2 className="text-2xl font-bold text-emerald-900">Account Created Successfully!</h2>
-          <p className="mt-4 text-lg font-semibold text-emerald-800">
-            Please wait, we will redirect you to homepage...
-          </p>
-          <div className="mt-6 flex justify-center">
-            <div className="h-2 w-32 overflow-hidden rounded-full bg-emerald-200">
-              <div className="h-full w-full animate-pulse bg-emerald-600"></div>
-            </div>
-          </div>
-          <p className="mt-6 text-sm text-emerald-700">
-            Your account has been created and email verified. Welcome to Haat Nepal!
-          </p>
-        </div>
+        <VerifyCodeForm email={state.email} onVerified={() => router.push(next || '/')} />
       </div>
     );
   }

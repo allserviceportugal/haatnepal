@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { verifyCodeAction, resendOtpAction } from "@/lib/actions/auth";
 import { ErrorBanner } from "@/components/error-banner";
 
@@ -12,6 +12,14 @@ interface VerifyCodeFormProps {
 export function VerifyCodeForm({ email, onVerified }: VerifyCodeFormProps) {
   const [state, formAction] = useActionState(verifyCodeAction, {});
   const [resendState, resendAction] = useActionState(resendOtpAction, {});
+
+  // Call onVerified callback after successful verification
+  useEffect(() => {
+    if (state.step === "success" && state.success && onVerified) {
+      const timer = setTimeout(onVerified, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [state.step, state.success, onVerified]);
 
   if (state.step === "success" && state.success) {
     return (
@@ -31,11 +39,10 @@ export function VerifyCodeForm({ email, onVerified }: VerifyCodeFormProps) {
     <div className="w-full max-w-sm space-y-4">
       <form action={formAction} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-slate-900 mb-1.5">
+          <label className="block text-sm font-medium text-slate-900 mb-1.5">
             Email
           </label>
           <input
-            id="email"
             name="email"
             type="hidden"
             value={email}

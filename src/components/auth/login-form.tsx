@@ -9,10 +9,10 @@ export function LoginForm({ next }: { next?: string }) {
   const [state, formAction, isPending] = useActionState(loginAction, {
     step: 'email',
   });
-  const [verifyReset, setVerifyReset] = useState(false);
+  const [verified, setVerified] = useState(false);
 
   // Verify step (unconfirmed email)
-  if (state.step === 'verify' && state.email) {
+  if (state.step === 'verify' && state.email && !verified) {
     return (
       <div className="space-y-6">
         <div className="text-center">
@@ -21,12 +21,7 @@ export function LoginForm({ next }: { next?: string }) {
             Your email isn't verified yet. We've sent a 6-digit code to <strong className="break-all">{state.email}</strong>
           </p>
         </div>
-        <VerifyCodeForm email={state.email} />
-        {verifyReset && (
-          <p className="text-center text-sm text-green-600">
-            Email verified! Please log in again.
-          </p>
-        )}
+        <VerifyCodeForm email={state.email} onVerified={() => setVerified(true)} />
       </div>
     );
   }

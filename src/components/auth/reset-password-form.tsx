@@ -1,17 +1,61 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { resetPasswordAction } from "@/lib/actions/auth";
 import { ErrorBanner } from "@/components/error-banner";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 export function ResetPasswordForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [sessionError, setSessionError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [state, formAction] = useActionState(resetPasswordAction, {});
+
+  // Check for recovery link and establish session
+  useEffect(() => {
+    async function checkSession() {
+      try {
+        const supabase = createClient();
+
+        // Check if we have an active session (from recovery link)
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          // Session already established (implicit flow worked)
+          setSessionLoading(false);
+          return;
+        }
+
+        // Try PKCE flow if code is present in URL
+        const code = searchParams.get('code');
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            setSessionError("Invalid or expired reset link. Please request a new one.");
+            setSessionLoading(false);
+            return;
+          }
+          setSessionLoading(false);
+          return;
+        }
+
+        // No code and no session = link is invalid
+        setSessionError("Invalid or expired reset link. Please request a new one.");
+        setSessionLoading(false);
+      } catch (err) {
+        console.error("Session check error:", err);
+        setSessionError("An error occurred. Please try again.");
+        setSessionLoading(false);
+      }
+    }
+
+    checkSession();
+  }, [searchParams]);
 
   useEffect(() => {
     if (state.step === "success" && state.success) {
@@ -21,6 +65,29 @@ export function ResetPasswordForm() {
       return () => clearTimeout(timer);
     }
   }, [state, router]);
+
+  if (sessionLoading) {
+    return (
+      <div className="w-full max-w-sm mx-auto rounded-lg border border-slate-200 bg-white p-8 text-center">
+        <div className="mb-4 text-2xl animate-pulse">🔄</div>
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Verifying your link...</h2>
+        <p className="text-slate-600">Please wait while we verify your reset link.</p>
+      </div>
+    );
+  }
+
+  if (sessionError) {
+    return (
+      <div className="w-full max-w-sm mx-auto rounded-lg border border-slate-200 bg-white p-8 text-center">
+        <div className="mb-4 text-4xl">✗</div>
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Link Invalid or Expired</h2>
+        <p className="text-slate-600 mb-6">{sessionError}</p>
+        <Link href="/forgot-password" className="inline-block text-sm font-semibold text-orange-600 hover:text-orange-700">
+          Request a new reset link →
+        </Link>
+      </div>
+    );
+  }
 
   if (state.step === "success" && state.success) {
     return (

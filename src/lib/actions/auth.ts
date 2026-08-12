@@ -40,6 +40,40 @@ function generateOtpCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+async function insertOtpCodeWithRetry(
+  adminClient: ReturnType<typeof createAdminClient>,
+  email: string,
+  maxRetries: number = 3
+): Promise<{ code: string; expiresAt: string }> {
+  for (let i = 0; i < maxRetries; i++) {
+    const code = generateOtpCode();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+    const { error } = await adminClient.from("otp_codes").insert({
+      email,
+      code,
+      expires_at: expiresAt,
+      verified_at: null,
+      attempts: 0,
+    });
+
+    // Success — code was inserted
+    if (!error) {
+      return { code, expiresAt };
+    }
+
+    // If not a unique constraint violation, give up
+    if (!error.message?.includes("unique")) {
+      throw error;
+    }
+
+    // Unique violation — retry with a new code
+    console.log(`[OTP] Code collision on attempt ${i + 1}, retrying...`);
+  }
+
+  throw new Error("Failed to generate unique OTP code after retries");
+}
+
 /**
  * SIGNUP: Create account and send email confirmation link
  */
@@ -193,25 +227,17 @@ export async function signUpAction(
 
   console.log("[SIGNUP] Profile created, generating OTP...");
 
-  // Generate OTP code
-  const code = generateOtpCode();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-
-  // Insert OTP into otp_codes table
-  const { error: otpError } = await adminClient
-    .from("otp_codes")
-    .insert({
-      email,
-      code,
-      expires_at: expiresAt,
-      verified_at: null,
-      attempts: 0,
-    });
-
-  if (otpError) {
-    console.error("[SIGNUP] OTP insertion failed:", otpError);
+  // Generate OTP code with retry on collision
+  let code: string;
+  let expiresAt: string;
+  try {
+    const otpResult = await insertOtpCodeWithRetry(adminClient, email);
+    code = otpResult.code;
+    expiresAt = otpResult.expiresAt;
+  } catch (err) {
+    console.error("[SIGNUP] OTP generation failed:", err);
     return {
-      error: `Failed to generate verification code: ${otpError?.message}`,
+      error: `Failed to generate verification code. Please try again.`,
       step: 'email',
     };
   }
@@ -306,19 +332,17 @@ export async function loginAction(
       await supabase.auth.signOut();
 
       // Generate and send OTP
-      const code = generateOtpCode();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
       const adminClient = createAdminClient();
-
-      await adminClient.from("otp_codes").insert({
-        email,
-        code,
-        expires_at: expiresAt,
-        verified_at: null,
-        attempts: 0,
-      });
-
-      await sendOtpVerificationEmail(email, profile?.display_name || email, code);
+      try {
+        const otpResult = await insertOtpCodeWithRetry(adminClient, email);
+        await sendOtpVerificationEmail(email, profile?.display_name || email, otpResult.code);
+      } catch (err) {
+        console.error("[LOGIN] OTP generation failed:", err);
+        return {
+          error: "Failed to send verification code. Please try again.",
+          step: 'email',
+        };
+      }
 
       return {
         step: 'verify',
@@ -567,10 +591,10 @@ export async function verifyCodeAction(
       .single();
 
     if (queryError || !otpRow) {
-      // Get the latest unverified row to increment attempts
+      // Get the latest unverified row to increment attempts by ID
       const { data: latestRow } = await admin
         .from("otp_codes")
-        .select("attempts")
+        .select("id, attempts")
         .eq("email", email)
         .is("verified_at", null)
         .order("created_at", { ascending: false })
@@ -578,14 +602,13 @@ export async function verifyCodeAction(
         .single();
 
       const currentAttempts = (latestRow?.attempts ?? 0) as number;
-      if (currentAttempts < 5) {
+
+      if (currentAttempts < 5 && latestRow?.id) {
+        // Update by ID for deterministic single-row updates
         await admin
           .from("otp_codes")
           .update({ attempts: currentAttempts + 1 })
-          .eq("email", email)
-          .is("verified_at", null)
-          .order("created_at", { ascending: false })
-          .limit(1);
+          .eq("id", latestRow.id);
       }
 
       if (currentAttempts >= 4) {
@@ -694,20 +717,18 @@ export async function resendOtpAction(
       };
     }
 
-    // Generate and insert new OTP
-    const code = generateOtpCode();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-
-    await admin.from("otp_codes").insert({
-      email,
-      code,
-      expires_at: expiresAt,
-      verified_at: null,
-      attempts: 0,
-    });
-
-    // Send email
-    await sendOtpVerificationEmail(email, profile.display_name, code);
+    // Generate and insert new OTP with retry on collision
+    try {
+      const otpResult = await insertOtpCodeWithRetry(admin, email);
+      await sendOtpVerificationEmail(email, profile.display_name, otpResult.code);
+    } catch (err) {
+      console.error("[RESEND_OTP] OTP generation failed:", err);
+      return {
+        error: "Failed to resend code. Please try again.",
+        step: 'verify',
+        email,
+      };
+    }
 
     return {
       success: true,
