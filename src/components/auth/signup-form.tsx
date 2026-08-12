@@ -206,7 +206,22 @@ export function SignupForm({ next }: { next?: string }) {
                 />
                 Pro — Rs 999/month
               </span>
-              <span className="ml-6 text-xs font-normal text-slate-500">Unlimited listings • Branded storefront • Priority support</span>
+              <span className="ml-6 text-xs font-normal text-slate-500">200 listings/month • Branded storefront • Priority support</span>
+            </span>
+          </label>
+          <label className="flex cursor-pointer rounded-xl border border-slate-200 px-4 py-3 text-sm has-[:checked]:border-orange-300 has-[:checked]:bg-orange-50">
+            <span className="flex flex-1 flex-col gap-1 font-semibold text-slate-700">
+              <span className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="planKey"
+                  value="premium"
+                  defaultChecked={state.formValues?.planKey === "premium"}
+                  className="h-4 w-4"
+                />
+                Premium — Rs 4999/month
+              </span>
+              <span className="ml-6 text-xs font-normal text-slate-500">500 listings/month • 50 featured listings/month • Storefront branding</span>
             </span>
           </label>
         </div>

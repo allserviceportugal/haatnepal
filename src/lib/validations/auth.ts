@@ -30,7 +30,7 @@ export const signUpSchema = z.object({
     .enum(["individual", "business"])
     .default("individual"),
   planKey: z
-    .enum(["normal", "plus", "pro"])
+    .enum(["normal", "plus", "pro", "premium"])
     .optional()
     .default("normal"),
   acceptTerms: z
