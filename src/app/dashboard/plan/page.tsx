@@ -3,9 +3,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { PlanCard } from "@/components/plan-card";
+import { PlanActionButton } from "@/components/business-account-confirmation";
 import { PLAN_ORDER } from "@/lib/constants/plans";
-import { switchPlanAction } from "@/lib/actions/subscriptions";
-import type { SubscriptionPlan } from "@/lib/supabase/types";
+import type { SubscriptionPlan, SubscriptionTier } from "@/lib/supabase/types";
 
 function startOfCurrentMonthISO() {
   const now = new Date();
@@ -27,7 +27,7 @@ export default async function DashboardPlanPage() {
   const [{ data: profile }, { data: plansData }, { count: usedThisMonth }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("subscription_plan_id, subscription_plans(*)")
+      .select("account_type, subscription_plan_id, subscription_plans(*)")
       .eq("id", user.id)
       .single(),
     supabase.from("subscription_plans").select("*"),
@@ -38,9 +38,12 @@ export default async function DashboardPlanPage() {
       .gte("created_at", startOfCurrentMonthISO()),
   ]);
 
-  const currentPlan =
-    (profile as unknown as { subscription_plans: SubscriptionPlan | null } | null)
-      ?.subscription_plans ?? null;
+  const profileData = profile as unknown as {
+    account_type: 'individual' | 'business';
+    subscription_plans: SubscriptionPlan | null;
+  } | null;
+  const currentPlan = profileData?.subscription_plans ?? null;
+  const accountType = profileData?.account_type ?? 'individual';
   const plans = (plansData ?? []).sort(
     (a, b) => PLAN_ORDER.indexOf(a.key) - PLAN_ORDER.indexOf(b.key)
   );
@@ -63,12 +66,23 @@ export default async function DashboardPlanPage() {
       <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         {plans.map((plan) => {
           const isCurrent = plan.id === currentPlan?.id;
+          const isBelowCurrent =
+            currentPlan &&
+            PLAN_ORDER.indexOf(plan.key) < PLAN_ORDER.indexOf(currentPlan.key);
+          const requiresBusinessAccount = ['pro', 'custom'].includes(plan.key);
+
           let action: ReactNode = null;
 
           if (isCurrent) {
             action = (
               <span className="block rounded-full border border-orange-200 px-4 py-2 text-center text-sm font-semibold text-orange-600">
                 Current plan
+              </span>
+            );
+          } else if (isBelowCurrent) {
+            action = (
+              <span className="block rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-center text-sm font-semibold text-slate-400">
+                Current tier or higher
               </span>
             );
           } else if (plan.key === "custom") {
@@ -82,20 +96,20 @@ export default async function DashboardPlanPage() {
             );
           } else {
             action = (
-              <form action={switchPlanAction.bind(null, plan.key as "normal" | "pro" | "business")}>
-                <button
-                  type="submit"
-                  className="w-full rounded-full bg-orange-500 px-4 py-2 text-sm font-bold text-white hover:bg-orange-600"
-                >
-                  Switch to {plan.name}
-                </button>
+              <>
+                <PlanActionButton
+                  planKey={plan.key as Exclude<SubscriptionTier, "custom">}
+                  planName={plan.name}
+                  accountType={accountType}
+                  requiresBusinessAccount={requiresBusinessAccount}
+                />
                 {plan.is_paid && (
                   <p className="mt-2 text-center text-[11px] text-slate-500">
                     Billing isn&apos;t connected yet — this switches your plan without payment for
                     now.
                   </p>
                 )}
-              </form>
+              </>
             );
           }
 

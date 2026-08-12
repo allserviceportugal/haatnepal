@@ -174,6 +174,60 @@ export function SignupForm({ next }: { next?: string }) {
         </div>
       </div>
 
+      <div>
+        <label className="block text-sm font-semibold text-slate-700">Plan (Optional upgrade)</label>
+        <div className="mt-2 space-y-2">
+          <label className="flex cursor-pointer rounded-xl border border-slate-200 px-4 py-3 text-sm has-[:checked]:border-orange-300 has-[:checked]:bg-orange-50">
+            <span className="flex flex-1 items-center gap-2 font-semibold text-slate-700">
+              <input
+                type="radio"
+                name="planKey"
+                value="normal"
+                defaultChecked={state.formValues?.planKey !== "plus" && state.formValues?.planKey !== "pro"}
+                className="h-4 w-4"
+              />
+              Free Plan (included with your account type)
+            </span>
+          </label>
+          <label className="flex cursor-pointer rounded-xl border border-slate-200 px-4 py-3 text-sm has-[:checked]:border-orange-300 has-[:checked]:bg-orange-50">
+            <span className="flex flex-1 flex-col gap-1 font-semibold text-slate-700">
+              <span className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="planKey"
+                  value="plus"
+                  defaultChecked={state.formValues?.planKey === "plus"}
+                  className="h-4 w-4"
+                />
+                Plus — Rs 499/month
+              </span>
+              <span className="ml-6 text-xs font-normal text-slate-500">100 listings/month • Advanced analytics</span>
+            </span>
+          </label>
+          <label className="flex cursor-pointer rounded-xl border border-slate-200 px-4 py-3 text-sm has-[:checked]:border-orange-300 has-[:checked]:bg-orange-50">
+            <span className="flex flex-1 flex-col gap-1 font-semibold text-slate-700">
+              <span className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="planKey"
+                  value="pro"
+                  defaultChecked={state.formValues?.planKey === "pro"}
+                  className="h-4 w-4"
+                />
+                Pro — Rs 999/month
+              </span>
+              <span className="ml-6 text-xs font-normal text-slate-500">Unlimited listings • Branded storefront • Priority support</span>
+            </span>
+          </label>
+        </div>
+        {state.formValues?.planKey === "pro" && state.formValues?.accountType === "individual" && (
+          <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-xs text-orange-900">
+            <p className="font-semibold">✓ Your account will be converted to Business</p>
+            <p className="mt-1">Pro plan includes branded storefront, which requires a Business account.</p>
+          </div>
+        )}
+      </div>
+
       <div className="space-y-3 rounded-lg border border-slate-100 bg-slate-50 p-4">
         <label className="flex cursor-pointer items-start gap-3">
           <input

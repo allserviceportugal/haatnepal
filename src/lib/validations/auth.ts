@@ -29,6 +29,10 @@ export const signUpSchema = z.object({
   accountType: z
     .enum(["individual", "business"])
     .default("individual"),
+  planKey: z
+    .enum(["normal", "plus", "pro"])
+    .optional()
+    .default("normal"),
   acceptTerms: z
     .enum(["on"])
     .refine(() => true, "You must accept the Terms of Service and Privacy Policy"),

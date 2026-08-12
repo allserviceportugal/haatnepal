@@ -22,6 +22,7 @@ export type AuthActionState = {
     email?: string;
     phone?: string;
     accountType?: string;
+    planKey?: string;
     acceptTerms?: string;
     subscribeNewsletter?: string;
   };
@@ -48,6 +49,7 @@ export async function signUpAction(
     confirmPassword: formData.get("confirmPassword"),
     phone: formData.get("phone"),
     accountType: formData.get("accountType"),
+    planKey: formData.get("planKey"),
     acceptTerms: formData.get("acceptTerms"),
     subscribeNewsletter: formData.get("subscribeNewsletter"),
   });
@@ -55,7 +57,8 @@ export async function signUpAction(
   const displayName = formData.get("displayName") as string;
   const emailInput = formData.get("email") as string;
   const phone = formData.get("phone") as string;
-  const accountType = formData.get("accountType") as string;
+  let accountType = formData.get("accountType") as string;
+  const planKey = formData.get("planKey") as string;
   const acceptTerms = formData.get("acceptTerms") as string;
   const subscribeNewsletter = formData.get("subscribeNewsletter") as string;
 
@@ -63,7 +66,7 @@ export async function signUpAction(
     return {
       error: parsed.error.issues[0]?.message ?? "Please check the form and try again.",
       step: 'email',
-      formValues: { displayName, email: emailInput, phone, accountType, acceptTerms, subscribeNewsletter },
+      formValues: { displayName, email: emailInput, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
     };
   }
 
@@ -74,7 +77,7 @@ export async function signUpAction(
     return {
       error: "Please use a real email address. Disposable emails are not allowed.",
       step: 'email',
-      formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
+      formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
     };
   }
 
@@ -91,7 +94,7 @@ export async function signUpAction(
     return {
       error: "This email is already registered. Please log in instead.",
       step: 'email',
-      formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
+      formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
     };
   }
 
@@ -105,7 +108,7 @@ export async function signUpAction(
     return {
       error: "This phone number is already registered. Please use a different number.",
       step: 'email',
-      formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
+      formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
     };
   }
 
@@ -129,7 +132,7 @@ export async function signUpAction(
     return {
       error: `Failed to create account: ${authError?.message || "unknown error"}`,
       step: 'email',
-      formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
+      formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
     };
   }
 
@@ -139,10 +142,26 @@ export async function signUpAction(
   console.log("[SIGNUP] Creating/updating profile...");
   const adminClient = createAdminClient();
 
+  // If Pro is selected and user is individual, convert to business
+  if (planKey === 'pro' && accountType !== 'business') {
+    accountType = 'business';
+  }
+
+  // Fetch plan ID if a non-default plan was selected
+  let subscriptionPlanId: string | null = null;
+  if (planKey && planKey !== 'normal') {
+    const { data: plan } = await adminClient
+      .from("subscription_plans")
+      .select("id")
+      .eq("key", planKey)
+      .single();
+    subscriptionPlanId = plan?.id ?? null;
+  }
+
   // Ensure account_type is valid enum value
   const validAccountType = (accountType === 'business' ? 'business' : 'individual');
 
-  const { error: profileError } = await adminClient.from("profiles").upsert({
+  const profileUpdate: any = {
     id: authData.user.id,
     display_name: displayName,
     email,
@@ -151,14 +170,20 @@ export async function signUpAction(
     phone_verified: false,
     password_set: true,
     email_confirmed: true,
-  });
+  };
+
+  if (subscriptionPlanId) {
+    profileUpdate.subscription_plan_id = subscriptionPlanId;
+  }
+
+  const { error: profileError } = await adminClient.from("profiles").upsert(profileUpdate);
 
   if (profileError) {
     console.error("[SIGNUP] Profile creation failed:", JSON.stringify(profileError));
     return {
       error: `Profile creation failed: ${profileError?.message || "unknown error"}. Details: ${JSON.stringify(profileError)}`,
       step: 'email',
-      formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
+      formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
     };
   }
 
