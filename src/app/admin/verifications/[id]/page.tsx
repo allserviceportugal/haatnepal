@@ -4,13 +4,14 @@ import { requireAdmin } from "@/lib/auth/require-admin";
 import { timeAgo } from "@/lib/format";
 import AdminVerificationActions from "@/components/admin-verification-actions";
 
-export default async function AdminVerificationDetailPage({ params }: { params: { id: string } }) {
+export default async function AdminVerificationDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
   const { supabase } = await requireAdmin();
 
   const { data: request } = await supabase
     .from("business_verification_requests")
     .select("*, profiles(display_name, email, phone)")
-    .eq("id", params.id)
+    .eq("id", resolvedParams.id)
     .single();
 
   if (!request) {
@@ -169,7 +170,7 @@ export default async function AdminVerificationDetailPage({ params }: { params: 
           </div>
 
           {/* Actions (only show for pending) */}
-          {request.status === "pending" && <AdminVerificationActions requestId={params.id} />}
+          {request.status === "pending" && <AdminVerificationActions requestId={resolvedParams.id} />}
         </div>
       </div>
     </div>

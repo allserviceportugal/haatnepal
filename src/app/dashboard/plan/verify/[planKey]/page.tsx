@@ -6,7 +6,9 @@ import { VerificationDocumentUploader } from "@/components/verification-document
 import { submitVerificationRequestAction } from "@/lib/actions/verifications";
 import type { SubscriptionPlan, SubscriptionTier } from "@/lib/supabase/types";
 
-export default async function VerifyPlanPage({ params }: { params: { planKey: string } }) {
+export default async function VerifyPlanPage({ params }: { params: Promise<{ planKey: string }> }) {
+  const resolvedParams = await params;
+
   if (!isSupabaseConfigured()) {
     return <p className="text-slate-500">Connect Supabase to manage your plan.</p>;
   }
@@ -19,11 +21,11 @@ export default async function VerifyPlanPage({ params }: { params: { planKey: st
   if (!user) redirect("/login?next=/dashboard/plan");
 
   // Validate planKey is one of the verification-gated tiers
-  if (!["plus", "pro", "premium"].includes(params.planKey)) {
+  if (!["plus", "pro", "premium"].includes(resolvedParams.planKey)) {
     redirect("/dashboard/plan");
   }
 
-  const planKey = params.planKey as Extract<SubscriptionTier, "plus" | "pro" | "premium">;
+  const planKey = resolvedParams.planKey as Extract<SubscriptionTier, "plus" | "pro" | "premium">;
 
   // Get current plan and check for pending request
   const [{ data: profile }, { data: plansData }, { data: verificationRequests }] = await Promise.all([
