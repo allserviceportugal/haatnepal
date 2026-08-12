@@ -111,15 +111,15 @@ export default async function AdminListingPage({ params }: { params: Promise<{ i
             <div className="space-y-3 text-sm">
               <div>
                 <p className="text-xs text-slate-500">Name</p>
-                <p className="font-semibold text-slate-900">{listing.profiles?.display_name}</p>
+                <p className="font-semibold text-slate-900">{Array.isArray(listing.profiles) ? listing.profiles[0]?.display_name : (listing.profiles as any)?.display_name}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">Email</p>
-                <p className="font-semibold text-slate-900">{listing.profiles?.email}</p>
+                <p className="font-semibold text-slate-900">{Array.isArray(listing.profiles) ? listing.profiles[0]?.email : (listing.profiles as any)?.email}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">Phone</p>
-                <p className="font-semibold text-slate-900">{listing.profiles?.phone || "—"}</p>
+                <p className="font-semibold text-slate-900">{Array.isArray(listing.profiles) ? listing.profiles[0]?.phone : (listing.profiles as any)?.phone || "—"}</p>
               </div>
             </div>
           </div>

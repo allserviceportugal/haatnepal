@@ -2,7 +2,15 @@ import { formatPrice } from '@/lib/format';
 import type { Listing } from '@/lib/supabase/types';
 
 interface ProductDetailsSectionProps {
-  listing: Partial<Listing>;
+  listing: Partial<Listing> & {
+    sku?: string;
+    stock_quantity?: number;
+    delivery_fee?: number;
+    delivery_time_days?: number;
+    warranty_period?: string;
+    return_policy?: string;
+    payment_methods?: string[];
+  };
 }
 
 export function ProductDetailsSection({ listing }: ProductDetailsSectionProps) {
