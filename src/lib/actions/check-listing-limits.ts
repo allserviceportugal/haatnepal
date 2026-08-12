@@ -43,7 +43,7 @@ export async function checkListingLimits(): Promise<ListingLimitCheckResult> {
     // Get user's subscription plan
     const { data: profile } = await supabase
       .from("profiles")
-      .select("subscription_plans(key, monthly_listing_quota, monthly_featured_quota)")
+      .select("role, subscription_plans(key, monthly_listing_quota, monthly_featured_quota)")
       .eq("id", user.id)
       .single();
 
@@ -63,6 +63,22 @@ export async function checkListingLimits(): Promise<ListingLimitCheckResult> {
     }
 
     const plan = profile.subscription_plans as any;
+
+    // Admins have unlimited listings and featured listings
+    if ((profile as any)?.role === "admin") {
+      return {
+        canCreate: true,
+        canFeature: true,
+        listingsUsed: 0,
+        listingsLimit: -1, // -1 = unlimited
+        listingsRemaining: -1,
+        featuredUsed: 0,
+        featuredLimit: -1,
+        featuredRemaining: -1,
+        currentPlan: "Admin (Unlimited)",
+        message: undefined,
+      };
+    }
 
     // Count current month's listings (live count, same approach as checkListingQuota in listings.ts)
     const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();

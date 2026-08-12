@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
+import type { Profile } from "@/lib/supabase/types";
 
 export default async function DashboardPage() {
   if (!isSupabaseConfigured()) {
@@ -19,6 +20,15 @@ export default async function DashboardPage() {
 
   if (!user) notFound();
 
+  // Fetch user profile to check if admin
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  const isAdmin = (profile as any)?.role === "admin";
+
   // Fetch seller stats
   const { data: listings } = await supabase
     .from("listings")
@@ -26,10 +36,24 @@ export default async function DashboardPage() {
     .eq("seller_id", user.id)
     .eq("status", "active");
 
-  const { data: orders } = await supabase
-    .from("orders")
-    .select("id, status")
-    .eq("seller_id", user.id);
+  // Only fetch orders for admins
+  let orders = null;
+  let recentOrders = null;
+  if (isAdmin) {
+    const ordersResult = await supabase
+      .from("orders")
+      .select("id, status");
+
+    orders = ordersResult.data;
+
+    const recentOrdersResult = await supabase
+      .from("orders")
+      .select("id, created_at, status, buyer_id, seller_id, profiles!orders_buyer_id_fkey(display_name)")
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    recentOrders = recentOrdersResult.data;
+  }
 
   const { data: conversations } = await supabase
     .from("conversations")
@@ -40,14 +64,6 @@ export default async function DashboardPage() {
   const totalOrders = orders?.length ?? 0;
   const pendingOrders = orders?.filter((o) => o.status === "pending").length ?? 0;
   const totalConversations = conversations?.length ?? 0;
-
-  // Fetch recent orders
-  const { data: recentOrders } = await supabase
-    .from("orders")
-    .select("id, created_at, status, buyer_id, profiles!orders_buyer_id_fkey(display_name)")
-    .eq("seller_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(5);
 
   return (
     <main className="max-w-7xl">

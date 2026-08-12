@@ -95,9 +95,14 @@ async function checkListingQuota(
 ): Promise<{ error: string | null; listing_duration_days: number | null }> {
   const { data: profile } = await supabase
     .from("profiles")
-    .select("subscription_plan_id, subscription_plans(name, monthly_listing_quota, listing_duration_days)")
+    .select("role, subscription_plan_id, subscription_plans(name, monthly_listing_quota, listing_duration_days)")
     .eq("id", userId)
     .single();
+
+  // Admins have unlimited listings
+  if ((profile as any)?.role === "admin") {
+    return { error: null, listing_duration_days: (profile as any)?.subscription_plans?.listing_duration_days ?? null };
+  }
 
   const plan = (
     profile as unknown as { subscription_plans: { name: string; monthly_listing_quota: number | null; listing_duration_days: number | null } | null } | null
@@ -445,29 +450,34 @@ export async function featureListingAction(
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("subscription_plans(name, monthly_featured_quota)")
+    .select("role, subscription_plans(name, monthly_featured_quota)")
     .eq("id", user.id)
     .single();
 
-  const plan = (
-    profile as unknown as { subscription_plans: { name: string; monthly_featured_quota: number | null } | null } | null
-  )?.subscription_plans;
+  // Admins have unlimited featured listings
+  if ((profile as any)?.role === "admin") {
+    // Skip quota check and proceed to feature the listing
+  } else {
+    const plan = (
+      profile as unknown as { subscription_plans: { name: string; monthly_featured_quota: number | null } | null } | null
+    )?.subscription_plans;
 
-  if (!plan || plan.monthly_featured_quota === 0) {
-    return { error: "Your plan doesn't include featured listings. Upgrade to Plus or higher on the Plan page." };
-  }
+    if (!plan || plan.monthly_featured_quota === 0) {
+      return { error: "Your plan doesn't include featured listings. Upgrade to Plus or higher on the Plan page." };
+    }
 
-  if (plan.monthly_featured_quota !== null) {
-    const { count } = await supabase
-      .from("listings")
-      .select("id", { count: "exact", head: true })
-      .eq("seller_id", user.id)
-      .gte("featured_at", startOfCurrentMonthISO());
+    if (plan.monthly_featured_quota !== null) {
+      const { count } = await supabase
+        .from("listings")
+        .select("id", { count: "exact", head: true })
+        .eq("seller_id", user.id)
+        .gte("featured_at", startOfCurrentMonthISO());
 
-    if ((count ?? 0) >= plan.monthly_featured_quota) {
-      return {
-        error: `You've used all ${plan.monthly_featured_quota} featured listings this month on the ${plan.name} plan. Upgrade for more.`,
-      };
+      if ((count ?? 0) >= plan.monthly_featured_quota) {
+        return {
+          error: `You've used all ${plan.monthly_featured_quota} featured listings this month on the ${plan.name} plan. Upgrade for more.`,
+        };
+      }
     }
   }
 
