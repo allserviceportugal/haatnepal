@@ -210,6 +210,21 @@ export async function getListingById(supabase: SupabaseClient, id: string) {
   const { data, error } = await supabase.from("listings").select(LISTING_SELECT).eq("id", id).single();
   if (error) return null;
 
+  // Lazy expiry check: if listing is active and past expiry, mark as expired
+  // This ensures correctness even if pg_cron is delayed
+  if (
+    data.status === "active" &&
+    data.expires_at &&
+    new Date(data.expires_at) < new Date()
+  ) {
+    await supabase
+      .from("listings")
+      .update({ status: "expired", status_reason: "auto: lazily detected on read" })
+      .eq("id", id);
+    // Update the local object to reflect the change
+    data.status = "expired";
+  }
+
   const listing = data as unknown as ListingWithRelations;
   const [favCounts, shareCounts] = await Promise.all([
     getFavoriteCounts(supabase, [id]),
