@@ -37,7 +37,7 @@ export const signUpSchema = z.object({
     .enum(["on"])
     .refine(() => true, "You must accept the Terms of Service and Privacy Policy"),
   subscribeNewsletter: z
-    .enum(["on"])
+    .string()
     .optional(),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
