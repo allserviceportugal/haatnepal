@@ -49,23 +49,24 @@ export default async function DashboardPlanPage() {
     <div>
       <h1 className="text-2xl font-black text-slate-900">Your plan</h1>
 
-      {currentPlan && (
+      {(currentPlan || true) && (
         <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-600">
-            You&apos;re on <span className="font-bold text-slate-900">{currentPlan.name}</span>.{" "}
-            {currentPlan.monthly_listing_quota === null
+            You&apos;re on <span className="font-bold text-slate-900">{currentPlan?.name ?? "Free"}</span>.{" "}
+            {(currentPlan?.monthly_listing_quota ?? null) === null
               ? `${usedThisMonth ?? 0} listings posted this month (unlimited).`
-              : `${usedThisMonth ?? 0} / ${currentPlan.monthly_listing_quota} listings used this month.`}
+              : `${usedThisMonth ?? 0} / ${currentPlan?.monthly_listing_quota} listings used this month.`}
           </p>
         </div>
       )}
 
       <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         {plans.map((plan) => {
-          const isCurrent = plan.id === currentPlan?.id;
+          // Treat NULL subscription (no plan set) as "on the free plan (normal)"
+          const effectiveCurrentPlanKey = currentPlan?.key ?? "normal";
+          const isCurrent = plan.key === effectiveCurrentPlanKey;
           const isBelowCurrent =
-            currentPlan &&
-            PLAN_ORDER.indexOf(plan.key) < PLAN_ORDER.indexOf(currentPlan.key);
+            PLAN_ORDER.indexOf(plan.key) < PLAN_ORDER.indexOf(effectiveCurrentPlanKey);
 
           let action: ReactNode = null;
 
