@@ -38,7 +38,7 @@ export const signUpSchema = z.object({
     .refine(() => true, "You must accept the Terms of Service and Privacy Policy"),
   subscribeNewsletter: z
     .string()
-    .optional(),
+    .nullish(),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -81,9 +81,8 @@ export const loginSchema = z.object({
     .min(1, "Password is required"),
   rememberMe: z
     .enum(["on", "off"])
-    .optional()
-    .default("on")
-    .transform(v => v === "on"),
+    .nullish()
+    .transform(v => v !== "off"),
 });
 
 /**
