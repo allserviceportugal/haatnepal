@@ -2,7 +2,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
-import type { Profile } from "@/lib/supabase/types";
+import { formatPrice, timeAgo } from "@/lib/format";
+import type { OrderWithRelations } from "@/lib/supabase/types";
+
+const ORDER_SELECT = `
+  *,
+  order_items(*, listings(id, title)),
+  buyer:profiles!orders_buyer_id_fkey(id, display_name),
+  seller:profiles!orders_seller_id_fkey(id, display_name),
+  delivery_couriers(id, name, base_cost_npr)
+`;
 
 export default async function DashboardPage() {
   if (!isSupabaseConfigured()) {
@@ -20,15 +29,6 @@ export default async function DashboardPage() {
 
   if (!user) notFound();
 
-  // Fetch user profile to check if admin
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  const isAdmin = (profile as any)?.role === "admin";
-
   // Fetch seller stats
   const { data: listings } = await supabase
     .from("listings")
@@ -36,24 +36,23 @@ export default async function DashboardPage() {
     .eq("seller_id", user.id)
     .eq("status", "active");
 
-  // Only fetch orders for admins
-  let orders = null;
-  let recentOrders = null;
-  if (isAdmin) {
-    const ordersResult = await supabase
+  // Fetch orders as buyer and seller (per-user view for all accounts)
+  const [{ data: buyerOrders }, { data: sellerOrders }, { data: recentOrdersData }] = await Promise.all([
+    supabase
       .from("orders")
-      .select("id, status");
-
-    orders = ordersResult.data;
-
-    const recentOrdersResult = await supabase
+      .select("id, status")
+      .eq("buyer_id", user.id),
+    supabase
       .from("orders")
-      .select("id, created_at, status, buyer_id, seller_id, profiles!orders_buyer_id_fkey(display_name)")
+      .select("id, status")
+      .eq("seller_id", user.id),
+    supabase
+      .from("orders")
+      .select(ORDER_SELECT)
+      .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
       .order("created_at", { ascending: false })
-      .limit(5);
-
-    recentOrders = recentOrdersResult.data;
-  }
+      .limit(5),
+  ]);
 
   const { data: conversations } = await supabase
     .from("conversations")
@@ -61,9 +60,11 @@ export default async function DashboardPage() {
     .or(`seller_id.eq.${user.id},buyer_id.eq.${user.id}`);
 
   const activeListings = listings?.length ?? 0;
-  const totalOrders = orders?.length ?? 0;
-  const pendingOrders = orders?.filter((o) => o.status === "pending").length ?? 0;
+  const purchaseCount = buyerOrders?.length ?? 0;
+  const fulfillCount = sellerOrders?.length ?? 0;
+  const pendingFulfillCount = (sellerOrders ?? []).filter((o) => o.status === "pending").length;
   const totalConversations = conversations?.length ?? 0;
+  const recentOrders = (recentOrdersData ?? []) as unknown as OrderWithRelations[];
 
   return (
     <main className="max-w-7xl">
@@ -90,12 +91,25 @@ export default async function DashboardPage() {
         <div className="rounded-lg border border-slate-200 bg-white p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-slate-500">Total Orders</p>
-              <p className="mt-2 text-3xl font-black text-slate-900">{totalOrders}</p>
+              <p className="text-sm font-semibold text-slate-500">Purchases</p>
+              <p className="mt-2 text-3xl font-black text-slate-900">{purchaseCount}</p>
+            </div>
+            <div className="text-4xl">🛒</div>
+          </div>
+          <Link href="/dashboard/orders" className="mt-4 inline-block text-sm font-semibold text-orange-600 hover:text-orange-700">
+            View purchases →
+          </Link>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-white p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-500">To Fulfill</p>
+              <p className="mt-2 text-3xl font-black text-slate-900">{fulfillCount}</p>
             </div>
             <div className="text-4xl">📦</div>
           </div>
-          <p className="mt-2 text-xs text-slate-500">{pendingOrders} pending</p>
+          <p className="mt-2 text-xs text-slate-500">{pendingFulfillCount} pending</p>
           <Link href="/dashboard/orders" className="mt-4 inline-block text-sm font-semibold text-orange-600 hover:text-orange-700">
             View orders →
           </Link>
@@ -137,31 +151,45 @@ export default async function DashboardPage() {
               View all →
             </Link>
           </div>
-          <div className="space-y-3">
-            {recentOrders.map((order) => (
-              <div key={order.id} className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-b-0">
-                <div>
-                  <p className="font-semibold text-slate-900">
-                    Order {order.id.slice(0, 8).toUpperCase()}
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    {(order.profiles as any)?.display_name ?? "Unknown buyer"}
-                  </p>
+          <div className="space-y-4">
+            {recentOrders.map((order) => {
+              const isBuyer = order.buyer_id === user.id;
+              const otherParty = isBuyer ? order.seller : order.buyer;
+              const orderType = isBuyer ? "Purchase" : "To fulfill";
+              const total = order.order_items.reduce((sum, item) => sum + item.price_at_order, 0);
+
+              return (
+                <div key={order.id} className="border-b border-slate-100 pb-4 last:border-b-0">
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold uppercase text-slate-500">{orderType}</span>
+                      <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-bold ${
+                        order.status === "pending" ? "bg-yellow-100 text-yellow-900" :
+                        order.status === "completed" ? "bg-green-100 text-green-900" :
+                        "bg-slate-100 text-slate-900"
+                      }`}>
+                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                      </span>
+                    </div>
+                    <span className="text-xs text-slate-400">{timeAgo(order.created_at)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm">
+                      <p className="font-semibold text-slate-900">{otherParty?.display_name ?? "Unknown"}</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {order.order_items.length} item{order.order_items.length !== 1 ? "s" : ""} — {formatPrice(total)}
+                      </p>
+                    </div>
+                    <Link
+                      href="/dashboard/orders"
+                      className="text-sm font-semibold text-orange-600 hover:text-orange-700"
+                    >
+                      View →
+                    </Link>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${
-                    order.status === "pending" ? "bg-yellow-100 text-yellow-900" :
-                    order.status === "completed" ? "bg-green-100 text-green-900" :
-                    "bg-slate-100 text-slate-900"
-                  }`}>
-                    {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                  </span>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {new Date(order.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
