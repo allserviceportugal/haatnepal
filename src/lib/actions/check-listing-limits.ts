@@ -63,18 +63,25 @@ export async function checkListingLimits(): Promise<ListingLimitCheckResult> {
     }
 
     const plan = profile.subscription_plans as any;
-    const currentMonth = new Date().toISOString().split("T")[0].substring(0, 7); // YYYY-MM
 
-    // Get current month's usage
-    const { data: usage } = await supabase
-      .from("user_monthly_usage")
-      .select("listings_created, featured_listings_created")
-      .eq("user_id", user.id)
-      .gte("month_year", `${currentMonth}-01`)
-      .single();
+    // Count current month's listings (live count, same approach as checkListingQuota in listings.ts)
+    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+    const { count: listingsCount } = await supabase
+      .from("listings")
+      .select("id", { count: "exact", head: true })
+      .eq("seller_id", user.id)
+      .gte("created_at", startOfMonth);
 
-    const listingsUsed = usage?.listings_created || 0;
-    const featuredUsed = usage?.featured_listings_created || 0;
+    // Count current month's featured listings (quota counts every feature action taken this month)
+    // Uses same logic as featureListingAction: counts by featured_at, not by current featured status
+    const { count: featuredCount } = await supabase
+      .from("listings")
+      .select("id", { count: "exact", head: true })
+      .eq("seller_id", user.id)
+      .gte("featured_at", startOfMonth);
+
+    const listingsUsed = listingsCount || 0;
+    const featuredUsed = featuredCount || 0;
     const listingsLimit = plan.monthly_listing_quota || -1; // -1 = unlimited
     const featuredLimit = plan.monthly_featured_quota || -1;
 
