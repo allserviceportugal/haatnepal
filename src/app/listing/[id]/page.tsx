@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { getListingById, isDescendantOfSlug } from "@/lib/queries/listings";
@@ -14,6 +15,61 @@ import { startConversationAction } from "@/lib/actions/conversations";
 import { withdrawJobApplicationAction } from "@/lib/actions/job-applications";
 import { JobApplicationForm } from "@/components/job-application-form";
 import { formatPrice, formatSalary, timeAgo, isWithinEditWindow } from "@/lib/format";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+
+  if (!isSupabaseConfigured()) {
+    return { title: "Listing" };
+  }
+
+  try {
+    const supabase = await createClient();
+    const listing = await getListingById(supabase, id);
+
+    if (!listing) {
+      return { title: "Listing Not Found" };
+    }
+
+    const image = listing.listing_images[0]?.url;
+    const location = listing.city ? `${listing.city}, ${listing.district}` : listing.district;
+    const description = listing.description
+      ? listing.description.substring(0, 160).replace(/\n/g, " ")
+      : `Buy or sell on Haat Nepal`;
+
+    return {
+      title: `${listing.title} - ${formatPrice(listing.price, listing.currency, listing.price_on_request)} | Haat Nepal`,
+      description,
+      openGraph: {
+        title: listing.title,
+        description,
+        images: image
+          ? [
+              {
+                url: image,
+                width: 1200,
+                height: 630,
+                alt: listing.title,
+              },
+            ]
+          : undefined,
+        type: "website",
+        locale: "en_US",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: listing.title,
+        description,
+        images: image ? [image] : undefined,
+      },
+      alternates: {
+        canonical: `https://haatnepal.com/listing/${id}`,
+      },
+    };
+  } catch {
+    return { title: "Listing" };
+  }
+}
 
 export default async function ListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

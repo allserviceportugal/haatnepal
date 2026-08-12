@@ -174,6 +174,41 @@ export function SignupForm({ next }: { next?: string }) {
         </div>
       </div>
 
+      <div className="space-y-3 rounded-lg border border-slate-100 bg-slate-50 p-4">
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            name="acceptTerms"
+            required
+            defaultChecked={state.formValues?.acceptTerms === 'on'}
+            className="mt-1 h-4 w-4 rounded border-slate-300"
+          />
+          <span className="flex-1 text-sm text-slate-700">
+            I agree to Haat Nepal's{" "}
+            <Link href="/terms" target="_blank" className="font-semibold text-orange-600 hover:underline">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" target="_blank" className="font-semibold text-orange-600 hover:underline">
+              Privacy Policy
+            </Link>
+            <span className="text-red-600"> *</span>
+          </span>
+        </label>
+
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            name="subscribeNewsletter"
+            defaultChecked={state.formValues?.subscribeNewsletter === 'on'}
+            className="mt-1 h-4 w-4 rounded border-slate-300"
+          />
+          <span className="flex-1 text-sm text-slate-700">
+            Send me tips, deals, and updates about Haat Nepal (optional)
+          </span>
+        </label>
+      </div>
+
       <button
         type="submit"
         disabled={isPending}

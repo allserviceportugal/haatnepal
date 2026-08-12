@@ -132,7 +132,25 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-slate-900">12. Contact Information</h2>
+            <h2 className="text-2xl font-bold text-slate-900">12. Content Moderation and Admin Rights</h2>
+            <p>
+              Haat Nepal maintains the right to monitor, review, and remove content that violates these Terms or applicable laws. Haat Nepal's administrators may:
+            </p>
+            <ul className="mt-3 space-y-2">
+              <li>• Delete listings that contain illegal, inappropriate, or fraudulent content</li>
+              <li>• Remove listings that violate Nepali laws or local regulations</li>
+              <li>• Delete posts containing hate speech, harassment, or discriminatory material</li>
+              <li>• Remove listings featuring counterfeit, stolen, or restricted items</li>
+              <li>• Take immediate action against listings promoting harmful, dangerous, or obscene content</li>
+              <li>• Suspend or terminate accounts engaged in systematic abuse or fraud</li>
+            </ul>
+            <p className="mt-3">
+              Users will be notified of content removal when possible, though immediate removal may occur without prior notice in cases of severe violations. Removal decisions are final and non-negotiable.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-slate-900">13. Contact Information</h2>
             <p>
               For questions or concerns about these Terms, contact us at:
             </p>

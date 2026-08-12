@@ -22,6 +22,8 @@ export type AuthActionState = {
     email?: string;
     phone?: string;
     accountType?: string;
+    acceptTerms?: string;
+    subscribeNewsletter?: string;
   };
 };
 
@@ -46,18 +48,22 @@ export async function signUpAction(
     confirmPassword: formData.get("confirmPassword"),
     phone: formData.get("phone"),
     accountType: formData.get("accountType"),
+    acceptTerms: formData.get("acceptTerms"),
+    subscribeNewsletter: formData.get("subscribeNewsletter"),
   });
 
   const displayName = formData.get("displayName") as string;
   const emailInput = formData.get("email") as string;
   const phone = formData.get("phone") as string;
   const accountType = formData.get("accountType") as string;
+  const acceptTerms = formData.get("acceptTerms") as string;
+  const subscribeNewsletter = formData.get("subscribeNewsletter") as string;
 
   if (!parsed.success) {
     return {
       error: parsed.error.issues[0]?.message ?? "Please check the form and try again.",
       step: 'email',
-      formValues: { displayName, email: emailInput, phone, accountType },
+      formValues: { displayName, email: emailInput, phone, accountType, acceptTerms, subscribeNewsletter },
     };
   }
 
@@ -68,7 +74,7 @@ export async function signUpAction(
     return {
       error: "Please use a real email address. Disposable emails are not allowed.",
       step: 'email',
-      formValues: { displayName, email, phone, accountType },
+      formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
     };
   }
 
@@ -85,7 +91,7 @@ export async function signUpAction(
     return {
       error: "This email is already registered. Please log in instead.",
       step: 'email',
-      formValues: { displayName, email, phone, accountType },
+      formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
     };
   }
 
@@ -99,7 +105,7 @@ export async function signUpAction(
     return {
       error: "This phone number is already registered. Please use a different number.",
       step: 'email',
-      formValues: { displayName, email, phone, accountType },
+      formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
     };
   }
 
@@ -123,7 +129,7 @@ export async function signUpAction(
     return {
       error: `Failed to create account: ${authError?.message || "unknown error"}`,
       step: 'email',
-      formValues: { displayName, email, phone, accountType },
+      formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
     };
   }
 
@@ -152,7 +158,7 @@ export async function signUpAction(
     return {
       error: `Profile creation failed: ${profileError?.message || "unknown error"}. Details: ${JSON.stringify(profileError)}`,
       step: 'email',
-      formValues: { displayName, email, phone, accountType },
+      formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
     };
   }
 

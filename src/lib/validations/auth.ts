@@ -4,7 +4,7 @@ import { z } from "zod";
 export const nepalPhoneRegex = /^[6789]\d{9}$/;
 
 /**
- * SIGNUP: Email + Password + Name + Phone + Account Type
+ * SIGNUP: Email + Password + Name + Phone + Account Type + T&C Acceptance
  */
 export const signUpSchema = z.object({
   displayName: z
@@ -29,6 +29,12 @@ export const signUpSchema = z.object({
   accountType: z
     .enum(["individual", "business"])
     .default("individual"),
+  acceptTerms: z
+    .enum(["on"])
+    .refine(() => true, "You must accept the Terms of Service and Privacy Policy"),
+  subscribeNewsletter: z
+    .enum(["on"])
+    .optional(),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
