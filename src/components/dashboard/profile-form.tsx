@@ -1,15 +1,21 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { NEPAL_DISTRICTS } from "@/lib/constants/locations";
 import { updateProfileAction } from "@/lib/actions/profile";
+import { changePasswordAction } from "@/lib/actions/auth";
 import { BrandingUploader } from "@/components/branding-uploader";
 import type { Profile } from "@/lib/supabase/types";
 
 export function ProfileForm({ profile, canBrand }: { profile: Profile; canBrand: boolean }) {
   const [state, formAction, isPending] = useActionState(updateProfileAction, {});
+  const [passwordState, passwordFormAction, isPasswordPending] = useActionState(changePasswordAction, {});
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   return (
+    <>
     <form action={formAction} className="space-y-5">
       {state.error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -145,5 +151,92 @@ export function ProfileForm({ profile, canBrand }: { profile: Profile; canBrand:
         {isPending ? "Saving..." : "Save changes"}
       </button>
     </form>
+
+    <div className="mt-8 border-t border-slate-200 pt-8">
+      <h2 className="text-lg font-bold text-slate-900 mb-4">Change password</h2>
+      <form action={passwordFormAction} className="space-y-4">
+        {passwordState.error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {passwordState.error}
+          </div>
+        )}
+        {passwordState.success && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            Password changed successfully. You can log in with your new password next time.
+          </div>
+        )}
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-700">Current password</label>
+          <div className="relative mt-2">
+            <input
+              name="currentPassword"
+              type={showCurrentPassword ? "text" : "password"}
+              placeholder="••••••••"
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+              className="absolute right-3 top-3 text-sm text-slate-500 hover:text-slate-700"
+            >
+              {showCurrentPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-700">New password</label>
+          <div className="relative mt-2">
+            <input
+              name="password"
+              type={showNewPassword ? "text" : "password"}
+              placeholder="••••••••"
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+              required
+              minLength={8}
+            />
+            <button
+              type="button"
+              onClick={() => setShowNewPassword(!showNewPassword)}
+              className="absolute right-3 top-3 text-sm text-slate-500 hover:text-slate-700"
+            >
+              {showNewPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">At least 8 characters</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-700">Confirm new password</label>
+          <div className="relative mt-2">
+            <input
+              name="confirmPassword"
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="••••••••"
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-3 text-sm text-slate-500 hover:text-slate-700"
+            >
+              {showConfirmPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={isPasswordPending}
+          className="rounded-full bg-slate-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-slate-200 transition hover:bg-slate-700 disabled:opacity-60"
+        >
+          {isPasswordPending ? "Updating..." : "Change password"}
+        </button>
+      </form>
+    </div>
+    </>
   );
 }

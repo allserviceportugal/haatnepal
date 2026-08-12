@@ -8,15 +8,20 @@ import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import {
   signUpSchema,
   loginSchema,
+  forgotPasswordSchema,
+  setPasswordSchema,
+  changePasswordSchema,
+  verifyCodeSchema,
 } from "@/lib/validations/auth";
-import { sendWelcomeEmail } from "@/lib/services/email";
+import { sendWelcomeEmail, sendOtpVerificationEmail } from "@/lib/services/email";
 import { isDisposableEmail } from "@/lib/utils/spam-protection";
 
 export type AuthActionState = {
   error?: string;
-  step?: 'email' | 'success';
+  step?: 'email' | 'verify' | 'success';
   email?: string;
   success?: boolean;
+  requireLogin?: boolean;
   formValues?: {
     displayName?: string;
     email?: string;
@@ -30,6 +35,10 @@ export type AuthActionState = {
 
 const NOT_CONFIGURED_ERROR =
   "Supabase isn't configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local.";
+
+function generateOtpCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 /**
  * SIGNUP: Create account and send email confirmation link
@@ -164,7 +173,7 @@ export async function signUpAction(
     account_type: validAccountType,
     phone_verified: false,
     password_set: true,
-    email_confirmed: true,
+    email_confirmed: false,
   };
 
   if (subscriptionPlanId) {
@@ -182,22 +191,45 @@ export async function signUpAction(
     };
   }
 
-  console.log("[SIGNUP] Profile created, sending welcome email with credentials...");
+  console.log("[SIGNUP] Profile created, generating OTP...");
 
-  // Send welcome email with credentials via Resend
-  const emailResult = await sendWelcomeEmail(email, displayName, password);
+  // Generate OTP code
+  const code = generateOtpCode();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-  if (!emailResult.success) {
-    console.error("[SIGNUP] Email sending failed:", emailResult.error);
+  // Insert OTP into otp_codes table
+  const { error: otpError } = await adminClient
+    .from("otp_codes")
+    .insert({
+      email,
+      code,
+      expires_at: expiresAt,
+      verified_at: null,
+      attempts: 0,
+    });
+
+  if (otpError) {
+    console.error("[SIGNUP] OTP insertion failed:", otpError);
     return {
-      error: `Failed to send welcome email: ${emailResult.error}`,
+      error: `Failed to generate verification code: ${otpError?.message}`,
       step: 'email',
     };
   }
 
-  console.log("[SIGNUP] Account created, email confirmed, and welcome email sent");
+  // Send OTP verification email
+  const emailResult = await sendOtpVerificationEmail(email, displayName, code);
 
-  // Sign in the new user immediately
+  if (!emailResult.success) {
+    console.error("[SIGNUP] OTP email sending failed:", emailResult.error);
+    return {
+      error: `Failed to send verification code: ${emailResult.error}`,
+      step: 'email',
+    };
+  }
+
+  console.log("[SIGNUP] Profile created, OTP generated and sent");
+
+  // Sign in the new user immediately (they'll be on the verify screen)
   try {
     const supabase = await createClient();
     await supabase.auth.signInWithPassword({
@@ -205,15 +237,15 @@ export async function signUpAction(
       password,
     });
 
-    console.log("[SIGNUP] User signed in automatically");
+    console.log("[SIGNUP] User signed in automatically for verify step");
   } catch (error) {
     console.error("[SIGNUP] Auto-signin failed:", error);
   }
 
-  // Return success state - client will handle redirect with message
+  // Return verify step - show OTP form
   return {
     success: true,
-    step: 'success',
+    step: 'verify',
     email,
   };
 }
@@ -262,6 +294,38 @@ export async function loginAction(
       };
     }
 
+    // Check if user's email is confirmed
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("email_confirmed, display_name")
+      .eq("email", email)
+      .single();
+
+    if (profile && !profile.email_confirmed) {
+      // Email not verified, sign out and show verify screen
+      await supabase.auth.signOut();
+
+      // Generate and send OTP
+      const code = generateOtpCode();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      const adminClient = createAdminClient();
+
+      await adminClient.from("otp_codes").insert({
+        email,
+        code,
+        expires_at: expiresAt,
+        verified_at: null,
+        attempts: 0,
+      });
+
+      await sendOtpVerificationEmail(email, profile?.display_name || email, code);
+
+      return {
+        step: 'verify',
+        email,
+      };
+    }
+
     const nextPath = next && typeof next === "string" && next.startsWith("/") ? next : "/";
     redirect(nextPath);
   } catch (error: unknown) {
@@ -274,6 +338,388 @@ export async function loginAction(
     return {
       error: "An error occurred. Please try again.",
       step: 'email',
+    };
+  }
+}
+
+/**
+ * FORGOT PASSWORD: Email + OTP reset link
+ */
+export async function forgotPasswordAction(
+  _prevState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: NOT_CONFIGURED_ERROR };
+  }
+
+  const parsed = forgotPasswordSchema.safeParse({
+    email: formData.get("email"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error: "Please enter a valid email address.",
+      step: 'email',
+    };
+  }
+
+  const { email } = parsed.data;
+
+  try {
+    const supabase = await createClient();
+    const origin = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${origin}/auth/reset-password`,
+    });
+
+    // Always return generic success (don't leak whether email exists)
+    return {
+      success: true,
+      step: 'success',
+    };
+  } catch (error: unknown) {
+    console.error("[FORGOT_PASSWORD] Error:", error);
+    return {
+      error: "An error occurred. Please try again.",
+      step: 'email',
+    };
+  }
+}
+
+/**
+ * RESET PASSWORD: Set new password (from email link)
+ */
+export async function resetPasswordAction(
+  _prevState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: NOT_CONFIGURED_ERROR };
+  }
+
+  const parsed = setPasswordSchema.safeParse({
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message || "Invalid input",
+      step: 'email',
+    };
+  }
+
+  const { password } = parsed.data;
+
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return {
+        error: "Session expired. Please try the forgot password link again.",
+        step: 'email',
+      };
+    }
+
+    const { error } = await supabase.auth.updateUser({ password });
+
+    if (error) {
+      console.error("[RESET_PASSWORD] Update error:", error);
+      return {
+        error: "Failed to update password. Please try again.",
+        step: 'email',
+      };
+    }
+
+    return {
+      success: true,
+      step: 'success',
+    };
+  } catch (error: unknown) {
+    console.error("[RESET_PASSWORD] Error:", error);
+    return {
+      error: "An error occurred. Please try again.",
+      step: 'email',
+    };
+  }
+}
+
+/**
+ * CHANGE PASSWORD: Update password for logged-in user
+ */
+export async function changePasswordAction(
+  _prevState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: NOT_CONFIGURED_ERROR };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      error: "You must be logged in to change your password.",
+      step: 'email',
+    };
+  }
+
+  const parsed = changePasswordSchema.safeParse({
+    currentPassword: formData.get("currentPassword"),
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message || "Invalid input",
+      step: 'email',
+    };
+  }
+
+  const { currentPassword, password } = parsed.data;
+
+  try {
+    // Re-authenticate with current password to verify it
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: user.email || "",
+      password: currentPassword,
+    });
+
+    if (signInError) {
+      console.error("[CHANGE_PASSWORD] Re-auth failed:", signInError);
+      return {
+        error: "Current password is incorrect.",
+        step: 'email',
+      };
+    }
+
+    // Update to new password
+    const { error: updateError } = await supabase.auth.updateUser({ password });
+
+    if (updateError) {
+      console.error("[CHANGE_PASSWORD] Update error:", updateError);
+      return {
+        error: "Failed to update password. Please try again.",
+        step: 'email',
+      };
+    }
+
+    return {
+      success: true,
+      step: 'success',
+    };
+  } catch (error: unknown) {
+    console.error("[CHANGE_PASSWORD] Error:", error);
+    return {
+      error: "An error occurred. Please try again.",
+      step: 'email',
+    };
+  }
+}
+
+/**
+ * VERIFY CODE: Verify OTP from signup or login
+ */
+export async function verifyCodeAction(
+  _prevState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: NOT_CONFIGURED_ERROR };
+  }
+
+  const parsed = verifyCodeSchema.safeParse({
+    email: formData.get("email"),
+    code: formData.get("code"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error: "Please enter a valid 6-digit code.",
+      step: 'verify',
+    };
+  }
+
+  const { email, code } = parsed.data;
+
+  try {
+    const admin = createAdminClient();
+
+    // Look up the OTP code
+    const { data: otpRow, error: queryError } = await admin
+      .from("otp_codes")
+      .select("*")
+      .eq("email", email)
+      .eq("code", code)
+      .is("verified_at", null)
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (queryError || !otpRow) {
+      // Get the latest unverified row to increment attempts
+      const { data: latestRow } = await admin
+        .from("otp_codes")
+        .select("attempts")
+        .eq("email", email)
+        .is("verified_at", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      const currentAttempts = (latestRow?.attempts ?? 0) as number;
+      if (currentAttempts < 5) {
+        await admin
+          .from("otp_codes")
+          .update({ attempts: currentAttempts + 1 })
+          .eq("email", email)
+          .is("verified_at", null)
+          .order("created_at", { ascending: false })
+          .limit(1);
+      }
+
+      if (currentAttempts >= 4) {
+        return {
+          error: "Too many attempts. Please request a new code.",
+          step: 'verify',
+          email,
+        };
+      }
+
+      return {
+        error: "Invalid or expired code. Please try again.",
+        step: 'verify',
+        email,
+      };
+    }
+
+    // Mark code as verified
+    await admin
+      .from("otp_codes")
+      .update({ verified_at: new Date().toISOString() })
+      .eq("id", otpRow.id);
+
+    // Update profile email_confirmed
+    await admin
+      .from("profiles")
+      .update({ email_confirmed: true })
+      .eq("email", email);
+
+    // Send welcome email (without password)
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("display_name")
+      .eq("email", email)
+      .single();
+
+    if (profile) {
+      await sendWelcomeEmail(email, profile.display_name);
+    }
+
+    // Check if user has an active session
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user && user.email === email) {
+      // Came from signup (session already live)
+      return {
+        success: true,
+        step: 'success',
+      };
+    } else {
+      // Came from login (need to re-login)
+      return {
+        success: true,
+        step: 'success',
+        requireLogin: true,
+      };
+    }
+  } catch (error: unknown) {
+    console.error("[VERIFY_CODE] Error:", error);
+    return {
+      error: "An error occurred. Please try again.",
+      step: 'verify',
+      email,
+    };
+  }
+}
+
+/**
+ * RESEND OTP: Send a new OTP code
+ */
+export async function resendOtpAction(
+  _prevState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: NOT_CONFIGURED_ERROR };
+  }
+
+  const email = formData.get("email") as string;
+
+  if (!email || !email.includes("@")) {
+    return {
+      error: "Invalid email address.",
+      step: 'verify',
+    };
+  }
+
+  try {
+    const admin = createAdminClient();
+
+    // Get user's display name
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("display_name")
+      .eq("email", email)
+      .single();
+
+    if (!profile) {
+      return {
+        error: "User not found.",
+        step: 'verify',
+        email,
+      };
+    }
+
+    // Generate and insert new OTP
+    const code = generateOtpCode();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+    await admin.from("otp_codes").insert({
+      email,
+      code,
+      expires_at: expiresAt,
+      verified_at: null,
+      attempts: 0,
+    });
+
+    // Send email
+    await sendOtpVerificationEmail(email, profile.display_name, code);
+
+    return {
+      success: true,
+      step: 'verify',
+      email,
+    };
+  } catch (error: unknown) {
+    console.error("[RESEND_OTP] Error:", error);
+    return {
+      error: "Failed to resend code. Please try again.",
+      step: 'verify',
+      email,
     };
   }
 }

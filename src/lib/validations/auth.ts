@@ -101,8 +101,27 @@ export const setPasswordSchema = z.object({
   path: ["confirmPassword"],
 });
 
+/**
+ * CHANGE PASSWORD: Current password + new password + confirm password
+ */
+export const changePasswordSchema = z.object({
+  currentPassword: z
+    .string()
+    .min(1, "Current password is required"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(100, "Password too long"),
+  confirmPassword: z
+    .string(),
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type VerifyCodeInput = z.infer<typeof verifyCodeSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type SetPasswordInput = z.infer<typeof setPasswordSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

@@ -4,6 +4,7 @@ import { useActionState, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signUpAction } from "@/lib/actions/auth";
+import { VerifyCodeForm } from "@/components/auth/verify-code-form";
 
 export function SignupForm({ next }: { next?: string }) {
   const router = useRouter();
@@ -23,6 +24,21 @@ export function SignupForm({ next }: { next?: string }) {
     }
   }, [state.success, state.step, router]);
 
+  // Verify email step
+  if (state.step === 'verify' && state.email) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Verify your email</h2>
+          <p className="text-slate-600">
+            We've sent a 6-digit code to <strong className="break-all">{state.email}</strong>
+          </p>
+        </div>
+        <VerifyCodeForm email={state.email} />
+      </div>
+    );
+  }
+
   // Success state - auto-redirect to homepage
   if (state.success && state.step === 'success') {
     return (
@@ -39,10 +55,7 @@ export function SignupForm({ next }: { next?: string }) {
             </div>
           </div>
           <p className="mt-6 text-sm text-emerald-700">
-            A welcome email with your login credentials has been sent to <strong className="break-all">{state.email}</strong>
-          </p>
-          <p className="mt-2 text-xs text-emerald-600">
-            Please check your email and keep your password safe. Do not share it with anyone.
+            Your account has been created and email verified. Welcome to Haat Nepal!
           </p>
         </div>
       </div>

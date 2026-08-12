@@ -1,13 +1,35 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { loginAction } from "@/lib/actions/auth";
+import { VerifyCodeForm } from "@/components/auth/verify-code-form";
 
 export function LoginForm({ next }: { next?: string }) {
   const [state, formAction, isPending] = useActionState(loginAction, {
     step: 'email',
   });
+  const [verifyReset, setVerifyReset] = useState(false);
+
+  // Verify step (unconfirmed email)
+  if (state.step === 'verify' && state.email) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Verify your email</h2>
+          <p className="text-slate-600">
+            Your email isn't verified yet. We've sent a 6-digit code to <strong className="break-all">{state.email}</strong>
+          </p>
+        </div>
+        <VerifyCodeForm email={state.email} />
+        {verifyReset && (
+          <p className="text-center text-sm text-green-600">
+            Email verified! Please log in again.
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <form action={formAction} className="space-y-5">
