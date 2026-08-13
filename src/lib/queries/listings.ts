@@ -1,13 +1,20 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CategoryAttribute, ListingWithRelations } from "@/lib/supabase/types";
 
+// Public listing select (no phone/email) — safe for anonymous users
 const LISTING_SELECT = `
   *,
   listing_images(*),
   categories(id, name, slug, parent_id),
-  profiles!listings_seller_id_fkey(id, display_name, phone, email, district, rating_avg, rating_count, account_type),
+  profiles!listings_seller_id_fkey(id, display_name, district, rating_avg, rating_count, account_type),
   listing_attribute_values(*, category_attributes(*)),
   listing_delivery_options(courier:delivery_couriers(*))
+`;
+
+// Contact info select — only for authenticated users viewing a specific listing
+const LISTING_CONTACT_SELECT = `
+  phone,
+  email
 `;
 
 export type ListingFilters = {
@@ -204,6 +211,12 @@ export async function getListings(
       return featuredDiff !== 0 ? featuredDiff : a.index - b.index;
     })
     .map(({ listing }) => listing);
+}
+
+// Fetch seller contact info (phone/email) — only for authenticated users
+export async function getSellerContact(supabase: SupabaseClient, sellerId: string) {
+  const { data } = await supabase.from("profiles").select(LISTING_CONTACT_SELECT).eq("id", sellerId).single();
+  return data as { phone: string; email: string } | null;
 }
 
 export async function getListingById(supabase: SupabaseClient, id: string) {

@@ -450,3 +450,129 @@ export async function sendVerificationRejectedEmail(
     return { success: false, error: "Error sending email" };
   }
 }
+
+export async function sendNewMessageEmail(
+  toEmail: string,
+  toName: string,
+  fromName: string,
+  fromEmail: string,
+  listingTitle: string,
+  messageBody: string,
+  conversationUrl: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!RESEND_API_KEY) {
+    console.error("[EMAIL] RESEND_API_KEY not configured");
+    return { success: false, error: "Email service not configured" };
+  }
+
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "support@noreply.haatnepal.com",
+        to: toEmail,
+        reply_to: fromEmail,
+        subject: `New message from ${fromName} about "${listingTitle}"`,
+        html: `
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; line-height: 1.6; color: #1f2937; background-color: #f9fafb; }
+              .container { max-width: 600px; margin: 0 auto; background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+              .header { background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); color: white; padding: 40px 30px; text-align: center; }
+              .header h1 { font-size: 24px; font-weight: 800; margin-bottom: 10px; }
+              .content { padding: 40px 30px; }
+              .greeting { font-size: 16px; font-weight: 600; color: #111827; margin-bottom: 15px; }
+              .listing-info { margin: 25px 0; padding: 20px; background-color: #fef3f2; border-left: 4px solid #ea580c; border-radius: 8px; }
+              .listing-title { font-weight: 700; color: #7c2d12; margin-bottom: 8px; }
+              .sender-info { font-size: 14px; color: #4b5563; margin: 8px 0; }
+              .message-section { margin: 25px 0; padding: 20px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; }
+              .message-label { font-weight: 600; color: #111827; margin-bottom: 12px; }
+              .message-body { color: #4b5563; line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
+              .cta-button { display: inline-block; margin-top: 20px; padding: 12px 30px; background-color: #ea580c; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; }
+              .cta-button:hover { background-color: #dc4a04; }
+              .reply-note { margin-top: 25px; padding: 15px; background-color: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 8px; font-size: 12px; color: #1e40af; }
+              .divider { height: 1px; background-color: #e5e7eb; margin: 25px 0; }
+              .footer { background-color: #f3f4f6; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb; }
+              .footer-text { font-size: 12px; color: #6b7280; line-height: 1.8; }
+              .help-link { color: #ea580c; text-decoration: none; font-weight: 600; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>💬 New Message</h1>
+                <p>Someone wants to talk about your listing</p>
+              </div>
+
+              <div class="content">
+                <p class="greeting">Hi ${toName},</p>
+
+                <p style="color: #4b5563; margin-bottom: 20px;">
+                  You have a new message from a buyer on Haat Nepal!
+                </p>
+
+                <div class="listing-info">
+                  <p class="listing-title">${listingTitle}</p>
+                  <p class="sender-info"><strong>From:</strong> ${fromName}</p>
+                  <p class="sender-info" style="font-size: 12px; color: #6b7280;">
+                    ${fromEmail}
+                  </p>
+                </div>
+
+                <div class="message-section">
+                  <p class="message-label">Message:</p>
+                  <p class="message-body">${messageBody}</p>
+                </div>
+
+                <div style="text-align: center;">
+                  <a href="${conversationUrl}" class="cta-button">View Conversation</a>
+                </div>
+
+                <div class="reply-note">
+                  <strong>💡 Quick tip:</strong> You can reply directly to this email, and your reply will go straight back to ${fromName}!
+                </div>
+
+                <div class="divider"></div>
+
+                <p style="font-size: 14px; color: #4b5563;">
+                  Keep your conversations safe — never share personal bank details or passwords. Use Haat Nepal's secure messaging for all communication.
+                </p>
+              </div>
+
+              <div class="footer">
+                <p class="footer-text">
+                  <strong>Haat Nepal</strong><br>
+                  Nepal's marketplace for buying, selling, and negotiating locally<br><br>
+                  © 2026 Haat Nepal. All rights reserved.<br>
+                  <a href="https://haatnepal.com" class="help-link">Visit our website</a>
+                </p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error("[EMAIL] Resend API error:", error);
+      return { success: false, error: "Failed to send message notification email" };
+    }
+
+    console.log("[EMAIL] New message notification sent to:", toEmail);
+    return { success: true };
+  } catch (error) {
+    console.error("[EMAIL] Error sending message notification email:", error);
+    return { success: false, error: "Error sending email" };
+  }
+}

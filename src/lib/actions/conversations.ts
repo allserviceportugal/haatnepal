@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getOrCreateConversation } from "@/lib/queries/conversations";
 import { trackLead } from "@/lib/queries/transaction_config";
+import { sendNewMessageEmail } from "@/lib/services/email";
 
 export type ChatActionState = { error?: string };
 
@@ -52,7 +53,7 @@ async function assertParticipant(
 ) {
   const { data: conversation } = await supabase
     .from("conversations")
-    .select("buyer_id, seller_id")
+    .select("buyer_id, seller_id, listing_id")
     .eq("id", conversationId)
     .single();
 
@@ -88,6 +89,46 @@ export async function sendMessageAction(
   }
 
   await supabase.from("messages").insert({ conversation_id: conversationId, sender_id: user.id, body });
+
+  // Send notification email to recipient (fire-and-forget, don't fail the message if email fails)
+  try {
+    const recipientId = conversation.buyer_id === user.id ? conversation.seller_id : conversation.buyer_id;
+    if (recipientId) {
+      const { data: sender } = await supabase
+        .from("profiles")
+        .select("display_name, email")
+        .eq("id", user.id)
+        .single();
+
+      const { data: recipient } = await supabase
+        .from("profiles")
+        .select("display_name, email")
+        .eq("id", recipientId)
+        .single();
+
+      const { data: listing } = await supabase
+        .from("listings")
+        .select("title")
+        .eq("id", conversation.listing_id)
+        .single();
+
+      if (sender && recipient) {
+        const conversationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/messages/${conversationId}`;
+        await sendNewMessageEmail(
+          recipient.email,
+          recipient.display_name,
+          sender.display_name,
+          sender.email,
+          listing?.title || "Your listing",
+          body,
+          conversationUrl
+        );
+      }
+    }
+  } catch (error) {
+    // Log but don't fail — email is best-effort notification
+    console.error("[MESSAGE] Failed to send email notification:", error);
+  }
 
   revalidatePath(`/dashboard/messages/${conversationId}`);
   return {};

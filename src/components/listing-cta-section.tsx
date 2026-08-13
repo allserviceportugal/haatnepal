@@ -6,6 +6,7 @@ import type { TransactionConfig } from '@/lib/queries/transaction_config';
 import { trackLead } from '@/lib/queries/transaction_config';
 import { useCart } from '@/lib/cart/cart-context';
 import { createClient } from '@/lib/supabase/client';
+import { startConversationAction } from '@/lib/actions/conversations';
 
 interface ListingCTASectionProps {
   listingId: string;
@@ -253,12 +254,14 @@ export function ListingCTASection({
               ) : null}
 
               {config.allow_message && (
-                <button
-                  onClick={() => router.push(`/dashboard/messages?listing=${listingId}`)}
-                  className="w-full rounded-full border-2 border-orange-500 px-6 py-3 text-sm font-bold text-orange-500 transition hover:bg-orange-50"
-                >
-                  💬 Message {sellerName}
-                </button>
+                <form action={startConversationAction.bind(null, listingId)}>
+                  <button
+                    type="submit"
+                    className="w-full rounded-full border-2 border-orange-500 px-6 py-3 text-sm font-bold text-orange-500 transition hover:bg-orange-50"
+                  >
+                    💬 Message {sellerName}
+                  </button>
+                </form>
               )}
 
               {config.allow_offer && (

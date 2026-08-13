@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
-import { getListingById, isDescendantOfSlug } from "@/lib/queries/listings";
+import { getListingById, isDescendantOfSlug, getSellerContact } from "@/lib/queries/listings";
 import { getListingTransactionConfig } from "@/lib/queries/transaction_config";
 import { FavoriteButton } from "@/components/favorite-button";
 import { ListingCTASection } from "@/components/listing-cta-section";
@@ -96,6 +96,15 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     data: { user },
   } = await supabase.auth.getUser();
   const isOwner = user?.id === listing.seller_id;
+
+  // Only fetch contact info if user is authenticated
+  let sellerPhone: string | undefined;
+  let sellerEmail: string | undefined;
+  if (user) {
+    const contact = await getSellerContact(supabase, listing.seller_id);
+    sellerPhone = contact?.phone;
+    sellerEmail = contact?.email;
+  }
 
   // Get transaction config for this listing
   const transactionConfig = await getListingTransactionConfig(supabase, id, user?.id);
@@ -453,8 +462,8 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                 <ListingCTASection
                   listingId={listing.id}
                   sellerId={listing.seller_id}
-                  sellerPhone={listing.profiles?.phone ?? undefined}
-                  sellerEmail={listing.profiles?.email ?? undefined}
+                  sellerPhone={sellerPhone}
+                  sellerEmail={sellerEmail}
                   sellerName={listing.profiles?.display_name ?? "Seller"}
                   listingTitle={listing.title}
                   listingPrice={listing.price}
