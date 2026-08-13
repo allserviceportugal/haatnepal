@@ -587,9 +587,9 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             </div>
           )}
 
-          {/* Posted and Expiry Dates */}
+          {/* Posted, Expiry, and Listing ID */}
           <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                   Posted
@@ -615,6 +615,12 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                       })
                     : "No expiry"}
                 </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  Listing ID
+                </p>
+                <p className="mt-2 font-mono text-xs text-slate-900 break-all">{listing.id}</p>
               </div>
             </div>
           </div>
