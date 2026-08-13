@@ -76,10 +76,15 @@ CREATE INDEX IF NOT EXISTS signup_attempts_ip_created_idx ON public.signup_attem
 
 ALTER TABLE public.signup_attempts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Prevent public access to signup_attempts" ON public.signup_attempts
-  FOR ALL USING (false)
-  FOR ALL WITH CHECK (false);
+  FOR SELECT USING (false);
+CREATE POLICY "Prevent insert to signup_attempts" ON public.signup_attempts
+  FOR INSERT WITH CHECK (false);
+CREATE POLICY "Prevent update to signup_attempts" ON public.signup_attempts
+  FOR UPDATE USING (false) WITH CHECK (false);
+CREATE POLICY "Prevent delete to signup_attempts" ON public.signup_attempts
+  FOR DELETE USING (false);
 
--- Cleanup old signup attempts (older than 24 hours) daily
+-- Cleanup old signup attempts (older than 24 hours)
 CREATE OR REPLACE FUNCTION cleanup_old_signup_attempts()
 RETURNS void AS $$
 BEGIN
@@ -87,18 +92,3 @@ BEGIN
   WHERE created_at < NOW() - INTERVAL '24 hours';
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
--- Schedule cleanup jobs (via pg_cron)
-SELECT cron.unschedule('cleanup-expired-otp-codes-hourly');
-SELECT cron.schedule(
-  'cleanup-expired-otp-codes-hourly',
-  '0 * * * *',
-  $$SELECT public.cleanup_expired_otp_codes();$$
-);
-
-SELECT cron.unschedule('cleanup-old-signup-attempts-daily');
-SELECT cron.schedule(
-  'cleanup-old-signup-attempts-daily',
-  '0 2 * * *',
-  $$SELECT public.cleanup_old_signup_attempts();$$
-);
