@@ -268,9 +268,10 @@ export function isValidEmail(email: string): boolean {
 }
 
 export function isValidPhoneNumber(phone: string): boolean {
-  // Nepal phone: 10 digits starting with 9, 8, 7, 6
-  const phoneRegex = /^[6789]\d{9}$/;
-  return phoneRegex.test(phone);
+  // Nepal phone: 7-10 digits (mobile or landline)
+  const { NEPAL_PHONE_REGEX, normalizeNepalPhone } = require("@/lib/constants/phone");
+  const normalized = normalizeNepalPhone(phone);
+  return NEPAL_PHONE_REGEX.test(normalized);
 }
 
 export async function hasMxRecord(domain: string): Promise<boolean> {

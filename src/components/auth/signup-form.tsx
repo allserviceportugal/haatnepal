@@ -136,14 +136,14 @@ export function SignupForm({ next }: { next?: string }) {
           name="phone"
           required
           inputMode="numeric"
-          pattern="[6789][0-9]{9}"
-          maxLength={10}
-          placeholder="98XXXXXXXX"
+          pattern="[0-9\-]{7,11}"
+          maxLength={11}
+          placeholder="Mobile: 98XXXXXXXX or Landline: 01-XXXXXXX"
           autoComplete="tel"
           defaultValue={state.formValues?.phone || ""}
           className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
         />
-        <p className="mt-1 text-xs text-slate-500">10 digits starting with 6, 7, 8, or 9 (e.g., 9841234567)</p>
+        <p className="mt-1 text-xs text-slate-500">Mobile (7-10 digits) or Landline with area code (e.g., 9841234567 or 01-4123456)</p>
       </div>
 
       <div>

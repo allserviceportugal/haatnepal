@@ -213,13 +213,23 @@ export async function signUpAction(
   });
 
   if (authError || !authData.user) {
-    // Detect phone collision race condition (trigger tried to create profile but failed)
-    const phoneRaceError = authError?.message?.includes('profiles_phone_key') ||
-                          authError?.message?.includes('unique constraint');
-    if (phoneRaceError) {
+    // Detect unique constraint violations and return the correct message
+    const isPhoneError = authError?.message?.includes('profiles_phone_key');
+    const isEmailError = authError?.message?.includes('profiles_email_key');
+
+    if (isPhoneError) {
       console.error("[SIGNUP] Phone collision race detected:", authError?.message);
       return {
         error: "This phone number is already registered. Please use a different number.",
+        step: 'email',
+        formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
+      };
+    }
+
+    if (isEmailError) {
+      console.error("[SIGNUP] Email collision detected:", authError?.message);
+      return {
+        error: "This email is already registered. Please log in instead.",
         step: 'email',
         formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
       };
@@ -244,6 +254,8 @@ export async function signUpAction(
     expiresAt = otpResult.expiresAt;
   } catch (err) {
     console.error("[SIGNUP] OTP generation failed:", err);
+    // Roll back: delete the auth user to free up email/phone for retry
+    await adminClient.auth.admin.deleteUser(authData.user.id);
     return {
       error: `Failed to generate verification code. Please try again.`,
       step: 'email',
@@ -255,6 +267,8 @@ export async function signUpAction(
 
   if (!emailResult.success) {
     console.error("[SIGNUP] OTP email sending failed:", emailResult.error);
+    // Roll back: delete the auth user to free up email/phone for retry
+    await adminClient.auth.admin.deleteUser(authData.user.id);
     return {
       error: `Failed to send verification code: ${emailResult.error}`,
       step: 'email',

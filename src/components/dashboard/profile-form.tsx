@@ -52,11 +52,16 @@ export function ProfileForm({ profile, canBrand }: { profile: Profile; canBrand:
       <div>
         <label className="block text-sm font-semibold text-slate-700">Phone</label>
         <input
-          value={profile.phone}
-          disabled
-          className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500"
+          name="phone"
+          type="tel"
+          defaultValue={profile.phone}
+          required
+          pattern="[0-9\-]{7,11}"
+          maxLength={11}
+          className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+          placeholder="Mobile: 98XXXXXXXX or Landline: 01-XXXXXXX"
         />
-        <p className="mt-1 text-xs text-slate-500">Contact support to change your phone number.</p>
+        <p className="mt-1 text-xs text-slate-500">Mobile (7-10 digits) or Landline with area code (e.g., 9841234567 or 01-4123456)</p>
       </div>
 
       <div>

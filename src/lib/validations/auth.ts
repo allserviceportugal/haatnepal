@@ -1,7 +1,5 @@
 import { z } from "zod";
-
-// Nepal phone validation (10 digits starting with 9, 8, 7, 6)
-export const nepalPhoneRegex = /^[6789]\d{9}$/;
+import { NEPAL_PHONE_REGEX, normalizeNepalPhone } from "@/lib/constants/phone";
 
 /**
  * SIGNUP: Email + Password + Name + Phone + Account Type + T&C Acceptance
@@ -29,7 +27,8 @@ export const signUpSchema = z.object({
   phone: z
     .string()
     .trim()
-    .regex(nepalPhoneRegex, "Enter a valid Nepali phone number (98XXXXXXXX)"),
+    .transform(normalizeNepalPhone)
+    .pipe(z.string().regex(NEPAL_PHONE_REGEX, "Enter a valid Nepali phone number (mobile: 98XXXXXXXX or landline: 01XXXXXXX)")),
   accountType: z
     .enum(["individual", "business"])
     .default("individual"),

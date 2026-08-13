@@ -21,6 +21,7 @@ export async function updateProfileAction(
 
   const parsed = profileSchema.safeParse({
     displayName: formData.get("displayName"),
+    phone: formData.get("phone"),
     district: formData.get("district"),
     city: formData.get("city"),
     businessDescription: formData.get("businessDescription"),
@@ -30,6 +31,18 @@ export async function updateProfileAction(
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Please check the form and try again." };
+  }
+
+  // Check if phone number is already used by another user
+  const { data: existingPhone } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("phone", parsed.data.phone)
+    .neq("id", user.id)
+    .single();
+
+  if (existingPhone) {
+    return { error: "This phone number is already registered to another account. Please use a different number." };
   }
 
   // Re-check the storefront-branding entitlement server-side (not just in
@@ -49,6 +62,7 @@ export async function updateProfileAction(
     .from("profiles")
     .update({
       display_name: parsed.data.displayName,
+      phone: parsed.data.phone,
       district: parsed.data.district || null,
       city: parsed.data.city || null,
       ...(canBrand
