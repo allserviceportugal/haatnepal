@@ -15,7 +15,11 @@ export const signUpSchema = z.object({
   email: z
     .string()
     .trim()
-    .email("Enter a valid email address"),
+    .email("Enter a valid email address")
+    .refine(
+      (e) => !e.split("@")[0]?.includes("+"),
+      "Plus-addressed emails (e.g. name+tag@domain.com) aren't allowed for signup"
+    ),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters")

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import crypto from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -14,7 +15,7 @@ import {
   verifyCodeSchema,
 } from "@/lib/validations/auth";
 import { sendWelcomeEmail, sendOtpVerificationEmail } from "@/lib/services/email";
-import { isDisposableEmail } from "@/lib/utils/spam-protection";
+import { isDisposableEmail, hasMxRecord } from "@/lib/utils/spam-protection";
 
 export type AuthActionState = {
   error?: string;
@@ -86,6 +87,28 @@ export async function signUpAction(
     return { error: NOT_CONFIGURED_ERROR };
   }
 
+  // Get client IP for rate limiting
+  const headersList = await headers();
+  const clientIp =
+    headersList.get("cf-connecting-ip") ??
+    headersList.get("x-forwarded-for")?.split(",")[0] ??
+    "unknown";
+
+  // Check IP-based signup rate limit (100 signups/hour per IP)
+  const adminClient = createAdminClient();
+  const { count } = await adminClient
+    .from("signup_attempts")
+    .select("*", { count: "exact", head: true })
+    .eq("ip", clientIp)
+    .gt("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString());
+
+  if ((count ?? 0) >= 100) {
+    return {
+      error: "Too many signups from this network. Please try again later.",
+      step: 'email',
+    };
+  }
+
   const parsed = signUpSchema.safeParse({
     displayName: formData.get("displayName"),
     email: formData.get("email"),
@@ -125,6 +148,19 @@ export async function signUpAction(
     };
   }
 
+  // Check for valid email domain (MX record exists)
+  const emailDomain = email.split("@")[1];
+  if (emailDomain) {
+    const hasMx = await hasMxRecord(emailDomain);
+    if (!hasMx) {
+      return {
+        error: "This email domain doesn't appear to accept mail. Please check for typos.",
+        step: 'email',
+        formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
+      };
+    }
+  }
+
   const supabase = await createClient();
 
   // Check if email or phone already exist
@@ -156,6 +192,9 @@ export async function signUpAction(
     };
   }
 
+  // Track signup attempt for rate limiting
+  await adminClient.from("signup_attempts").insert({ ip: clientIp });
+
   // Create auth user — profile is created atomically via trigger
   console.log("[SIGNUP] Creating auth user:", email);
   const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -167,6 +206,7 @@ export async function signUpAction(
         phone,
         account_type: accountType,
         plan_key: planKey,
+        subscribe_newsletter: formData.get("subscribeNewsletter") === "on",
       },
       emailRedirectTo: undefined,
     },
@@ -194,8 +234,6 @@ export async function signUpAction(
   }
 
   console.log("[SIGNUP] Auth user created (profile created by trigger):", authData.user.id);
-
-  const adminClient = createAdminClient();
 
   // Generate OTP code with retry on collision
   let code: string;
