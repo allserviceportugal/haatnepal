@@ -13,6 +13,7 @@ interface ListingCTASectionProps {
   sellerId: string;
   sellerPhone?: string;
   sellerEmail?: string;
+  listingContactPhone?: string | null;
   sellerName: string;
   listingTitle: string;
   listingPrice: number;
@@ -27,6 +28,7 @@ export function ListingCTASection({
   sellerId,
   sellerPhone,
   sellerEmail,
+  listingContactPhone,
   sellerName,
   listingTitle,
   listingPrice,
@@ -39,6 +41,9 @@ export function ListingCTASection({
   const { addItem } = useCart();
   const supabase = createClient();
   const [phoneRevealed, setPhoneRevealed] = useState(false);
+
+  // Use listing's contact phone if provided, otherwise fall back to seller's phone
+  const contactPhone = listingContactPhone || sellerPhone;
 
   const handleContactReveal = useCallback(async () => {
     if (!currentUserId) {
@@ -69,10 +74,10 @@ export function ListingCTASection({
     });
 
     // Open phone dialer
-    if (sellerPhone) {
-      window.location.href = `tel:${sellerPhone}`;
+    if (contactPhone) {
+      window.location.href = `tel:${contactPhone}`;
     }
-  }, [currentUserId, listingId, sellerId, supabase, router, sellerPhone]);
+  }, [currentUserId, listingId, sellerId, supabase, router, contactPhone]);
 
   const handleWhatsAppClick = useCallback(async () => {
     if (!currentUserId) {
@@ -88,10 +93,10 @@ export function ListingCTASection({
     });
 
     // Open WhatsApp
-    if (sellerPhone) {
-      window.location.href = `https://wa.me/${sellerPhone}`;
+    if (contactPhone) {
+      window.location.href = `https://wa.me/${contactPhone}`;
     }
-  }, [currentUserId, listingId, sellerId, supabase, router, sellerPhone]);
+  }, [currentUserId, listingId, sellerId, supabase, router, contactPhone]);
 
   const handleEmailClick = useCallback(async () => {
     if (!currentUserId) {
@@ -162,7 +167,7 @@ export function ListingCTASection({
       {/* Anonymous user: show login prompts */}
       {!currentUserId && (
         <>
-          {sellerPhone && (
+          {contactPhone && (
             <button
               onClick={() => router.push(`/login?next=/listing/${listingId}`)}
               className="w-full rounded-full bg-green-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-green-200 transition hover:bg-green-700"
@@ -201,7 +206,7 @@ export function ListingCTASection({
       {currentUserId && (
         <>
           {/* Call seller button - always visible if phone available */}
-          {sellerPhone && (
+          {contactPhone && (
             phoneRevealed ? (
               <button
                 onClick={handlePhoneClick}
@@ -251,7 +256,7 @@ export function ListingCTASection({
                       onClick={handlePhoneClick}
                       className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-orange-200 transition hover:bg-orange-600"
                     >
-                      📞 Call {sellerPhone}
+                      📞 Call {contactPhone}
                     </button>
                   ) : (
                     <button

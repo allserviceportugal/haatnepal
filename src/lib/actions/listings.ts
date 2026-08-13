@@ -81,6 +81,7 @@ function parseListingForm(formData: FormData) {
     farmLocation: formData.get("farmLocation") ?? "",
     forRent: formData.get("forRent") === "on",
     rentalRatePeriod: formData.get("rentalRatePeriod") ?? "",
+    contact_phone: formData.get("contact_phone") ?? "",
   });
 }
 
@@ -184,7 +185,7 @@ export async function createListingAction(
     return { error: quotaCheckResult.error };
   }
 
-  const { title, description, price, priceOnRequest, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, registrationYear, manufacturingYear, bluebookStatus, importStatus, ownerCount, isModified, accidentHistory, serviceHistory, foodFreshness, bestBeforeDate, manufacturingDate, ingredients, storageInstructions, allergenInfo, harvestDate, unitOfSale, minOrderQuantity, farmLocation, forRent, rentalRatePeriod } =
+  const { title, description, price, priceOnRequest, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, registrationYear, manufacturingYear, bluebookStatus, importStatus, ownerCount, isModified, accidentHistory, serviceHistory, foodFreshness, bestBeforeDate, manufacturingDate, ingredients, storageInstructions, allergenInfo, harvestDate, unitOfSale, minOrderQuantity, farmLocation, forRent, rentalRatePeriod, contact_phone } =
     parsed.data;
   const pickupAvailable = formData.get("pickupAvailable") === "on";
 
@@ -252,6 +253,7 @@ export async function createListingAction(
       for_rent: forRent,
       rental_rate_period: rentalRatePeriod || null,
       price_on_request: priceOnRequest,
+      contact_phone: contact_phone || null,
       expires_at: expiresAt,
     })
     .select("id")
@@ -317,7 +319,7 @@ export async function updateListingAction(
     return { error: "You can only edit a listing within 15 minutes of posting. To change this listing, please mark it as Sold and create a new one." };
   }
 
-  const { title, description, price, priceOnRequest, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, foodFreshness, bestBeforeDate, manufacturingDate, ingredients, storageInstructions, allergenInfo, harvestDate, unitOfSale, minOrderQuantity, farmLocation, forRent, rentalRatePeriod } =
+  const { title, description, price, priceOnRequest, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, foodFreshness, bestBeforeDate, manufacturingDate, ingredients, storageInstructions, allergenInfo, harvestDate, unitOfSale, minOrderQuantity, farmLocation, forRent, rentalRatePeriod, contact_phone } =
     parsed.data;
   const pickupAvailable = formData.get("pickupAvailable") === "on";
 
@@ -370,6 +372,7 @@ export async function updateListingAction(
       farm_location: farmLocation || null,
       for_rent: forRent,
       rental_rate_period: rentalRatePeriod || null,
+      contact_phone: contact_phone || null,
     })
     .eq("id", listingId)
     .eq("seller_id", user.id);

@@ -464,6 +464,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                   sellerId={listing.seller_id}
                   sellerPhone={sellerPhone}
                   sellerEmail={sellerEmail}
+                  listingContactPhone={listing.contact_phone}
                   sellerName={listing.profiles?.display_name ?? "Seller"}
                   listingTitle={listing.title}
                   listingPrice={listing.price}

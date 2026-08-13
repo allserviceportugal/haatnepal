@@ -544,6 +544,18 @@ export function ListingForm({
             placeholder="e.g. Baneshwor"
           />
         </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-700">Contact phone number (optional)</label>
+          <p className="mt-1 text-xs text-slate-500">Add a phone number for this listing. Only registered users will see it.</p>
+          <input
+            name="contact_phone"
+            type="tel"
+            defaultValue={(state.formValues?.contact_phone as string) ?? defaultValues?.contact_phone ?? ""}
+            className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-300"
+            placeholder="e.g. 9841234567"
+          />
+        </div>
       </div>
 
       {isRealEstateListing && (

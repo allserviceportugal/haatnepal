@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { NEPAL_PHONE_REGEX } from "@/lib/constants/phone";
 
 export const listingConditions = ["new", "used", "not_applicable"] as const;
 export const listingTypes = ["classified", "fixed_price"] as const;
@@ -59,6 +60,7 @@ export const listingSchema = z.object({
   farmLocation: z.string().trim().max(150).optional().or(z.literal("")),
   forRent: z.boolean().optional().default(false),
   rentalRatePeriod: z.enum(rentalRatePeriods).optional().or(z.literal("")),
+  contact_phone: z.string().regex(NEPAL_PHONE_REGEX, "Enter a valid Nepali phone number").optional().or(z.literal("")),
 });
 
 export type ListingInput = z.infer<typeof listingSchema>;

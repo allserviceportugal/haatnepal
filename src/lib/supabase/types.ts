@@ -144,6 +144,7 @@ export type Listing = {
   for_rent: boolean;
   rental_rate_period: string | null;
   price_on_request: boolean;
+  contact_phone: string | null;
   created_at: string;
   updated_at: string;
   expires_at: string;
