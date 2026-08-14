@@ -43,12 +43,12 @@ export function ListingImageGallery({ images, alt }: ListingImageGalleryProps) {
   return (
     <>
       {/* Main image */}
-      <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-slate-100 cursor-pointer" onClick={() => setShowModal(true)}>
+      <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-slate-100 cursor-pointer flex items-center justify-center" onClick={() => setShowModal(true)}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={currentImage.url}
           alt={alt}
-          className="h-[300px] w-full object-cover hover:brightness-95 transition-all sm:h-[420px]"
+          className="h-[300px] w-full object-contain hover:brightness-95 transition-all sm:h-[420px]"
         />
       </div>
 
