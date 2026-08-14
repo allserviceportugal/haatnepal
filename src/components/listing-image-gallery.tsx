@@ -48,7 +48,7 @@ export function ListingImageGallery({ images, alt }: ListingImageGalleryProps) {
         <img
           src={currentImage.url}
           alt={alt}
-          className="h-[420px] w-full object-cover hover:brightness-95 transition-all"
+          className="h-[300px] w-full object-cover hover:brightness-95 transition-all sm:h-[420px]"
         />
       </div>
 
