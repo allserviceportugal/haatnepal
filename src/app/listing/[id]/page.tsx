@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { getListingById, isDescendantOfSlug, getSellerContact } from "@/lib/queries/listings";
 import { getListingTransactionConfig } from "@/lib/queries/transaction_config";
+import { getListingReviews, getListingAverageRating, getUserReviewForListing } from "@/lib/queries/reviews";
+import { ReviewForm } from "@/components/review-form";
+import { ReviewList } from "@/components/review-list";
 import { FavoriteButton } from "@/components/favorite-button";
 import { ListingCTASection } from "@/components/listing-cta-section";
 import { FeatureListingButton } from "@/components/feature-listing-button";
@@ -172,6 +175,14 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
   }
 
   const images = [...listing.listing_images].sort((a, b) => a.sort_order - b.sort_order);
+
+  // Fetch reviews
+  const reviews = await getListingReviews(supabase, id);
+  const ratingData = await getListingAverageRating(supabase, id);
+  let userReview: any = undefined;
+  if (user) {
+    userReview = await getUserReviewForListing(supabase, id, user.id) || undefined;
+  }
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
@@ -635,6 +646,25 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Reviews Section - Full width at bottom */}
+      <div className="mt-12 space-y-6">
+        {user && !isOwner && (
+          <ReviewForm listingId={listing.id} existingReview={userReview} />
+        )}
+        {user === null && (
+          <div className="rounded-[24px] border border-orange-200 bg-orange-50 px-6 py-4 text-sm text-orange-700">
+            <p className="font-semibold">Sign in to leave a review</p>
+            <p className="mt-1">You need to be signed in to share your experience with this listing.</p>
+          </div>
+        )}
+        <ReviewList
+          reviews={reviews}
+          currentUserId={user?.id}
+          averageRating={ratingData?.average ? parseFloat(ratingData.average.toString()) : undefined}
+          totalReviews={reviews.length}
+        />
       </div>
     </main>
   );
