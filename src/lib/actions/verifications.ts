@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sendVerificationRequestReceivedEmail } from "@/lib/services/email";
 import type { SubscriptionTier } from "@/lib/supabase/types";
 
 export async function submitVerificationRequestAction(
@@ -72,6 +73,18 @@ export async function submitVerificationRequestAction(
 
   if (error) {
     throw error;
+  }
+
+  try {
+    await sendVerificationRequestReceivedEmail(
+      businessName,
+      contactPersonName,
+      contactEmail,
+      contactPhone,
+      planKey
+    );
+  } catch (emailError) {
+    console.error("Failed to send verification request notification email:", emailError);
   }
 
   revalidatePath("/dashboard/plan");

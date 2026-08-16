@@ -11,7 +11,7 @@ export function ListingCard({
 }) {
   const image = listing.listing_images[0]?.url;
   const isFeatured = listing.featured_until !== null && new Date(listing.featured_until) > new Date();
-  const isOrganic = listing.listing_attribute_values.some(
+  const isOrganic = (listing.listing_attribute_values ?? []).some(
     (row) => row.category_attributes?.key === "organic" && row.value === "true"
   );
   const href = applicantCount !== undefined ? `/dashboard/listings/${listing.id}/applicants` : `/listing/${listing.id}`;

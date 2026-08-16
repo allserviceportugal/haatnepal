@@ -19,7 +19,7 @@ export default async function DashboardFavoritesPage() {
   const { data } = await supabase
     .from("favorites")
     .select(
-      "listings(*, listing_images(*), categories(id, name, slug), profiles!listings_seller_id_fkey(id, display_name, district, rating_avg, rating_count))"
+      "listings(*, listing_images(*), categories(id, name, slug), profiles!listings_seller_id_fkey(id, display_name, district, rating_avg, rating_count), listing_attribute_values(*, category_attributes(*)))"
     )
     .eq("user_id", user.id);
 

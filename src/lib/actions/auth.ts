@@ -205,7 +205,10 @@ export async function signUpAction(
         display_name: displayName,
         phone,
         account_type: accountType,
-        plan_key: planKey,
+        // Never trust the raw planKey from the form — Plus/Pro/Premium require
+        // business verification and must only be granted via the verification
+        // flow on /dashboard/plan, not at signup.
+        plan_key: accountType === "business" ? "business" : "normal",
         subscribe_newsletter: formData.get("subscribeNewsletter") === "on",
       },
       emailRedirectTo: undefined,

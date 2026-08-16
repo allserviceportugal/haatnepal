@@ -236,6 +236,110 @@ export async function sendOtpVerificationEmail(
   }
 }
 
+export async function sendVerificationRequestReceivedEmail(
+  businessName: string,
+  contactPersonName: string,
+  contactEmail: string,
+  contactPhone: string,
+  requestedPlanKey: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!RESEND_API_KEY) {
+    console.error("[EMAIL] RESEND_API_KEY not configured");
+    return { success: false, error: "Email service not configured" };
+  }
+
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "support@noreply.haatnepal.com",
+        to: "hello@haatnepal.com",
+        reply_to: contactEmail,
+        subject: `New ${requestedPlanKey} plan verification request — ${businessName}`,
+        html: `
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; line-height: 1.6; color: #1f2937; background-color: #f9fafb; }
+              .container { max-width: 600px; margin: 0 auto; background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+              .header { background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); color: white; padding: 40px 30px; text-align: center; }
+              .header h1 { font-size: 28px; font-weight: 800; margin-bottom: 10px; }
+              .content { padding: 40px 30px; }
+              .details-section { margin: 20px 0; padding: 20px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; }
+              .details-row { display: flex; padding: 8px 0; font-size: 14px; }
+              .details-label { font-weight: 700; color: #111827; min-width: 140px; }
+              .details-value { color: #4b5563; }
+              .cta-button { display: inline-block; margin-top: 20px; padding: 12px 30px; background-color: #ea580c; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; }
+              .divider { height: 1px; background-color: #e5e7eb; margin: 25px 0; }
+              .footer { background-color: #f3f4f6; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb; }
+              .footer-text { font-size: 12px; color: #6b7280; line-height: 1.8; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>New verification request</h1>
+                <p>Requesting the ${requestedPlanKey} plan</p>
+              </div>
+
+              <div class="content">
+                <p style="color: #4b5563; margin-bottom: 20px;">
+                  A user has submitted a business verification request for the <strong>${requestedPlanKey}</strong> plan.
+                </p>
+
+                <div class="details-section">
+                  <div class="details-row"><span class="details-label">Business name:</span><span class="details-value">${businessName}</span></div>
+                  <div class="details-row"><span class="details-label">Contact person:</span><span class="details-value">${contactPersonName}</span></div>
+                  <div class="details-row"><span class="details-label">Contact email:</span><span class="details-value">${contactEmail}</span></div>
+                  <div class="details-row"><span class="details-label">Contact phone:</span><span class="details-value">${contactPhone}</span></div>
+                </div>
+
+                <div style="text-align: center;">
+                  <a href="https://haatnepal.com/admin/verifications" class="cta-button">Review in admin panel</a>
+                </div>
+
+                <div class="divider"></div>
+
+                <p style="font-size: 14px; color: #4b5563;">
+                  Reply directly to this email to reach the applicant, or approve/reject the request from the admin panel.
+                </p>
+              </div>
+
+              <div class="footer">
+                <p class="footer-text">
+                  <strong>Haat Nepal</strong> — internal notification<br>
+                  © 2026 Haat Nepal.
+                </p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error("[EMAIL] Resend API error:", error);
+      return { success: false, error: "Failed to send verification request notification email" };
+    }
+
+    console.log("[EMAIL] Verification request notification sent to hello@haatnepal.com for:", businessName);
+    return { success: true };
+  } catch (error) {
+    console.error("[EMAIL] Error sending verification request notification email:", error);
+    return { success: false, error: "Error sending email" };
+  }
+}
+
 export async function sendVerificationApprovedEmail(
   email: string,
   displayName: string,
