@@ -29,7 +29,6 @@ export type AuthActionState = {
     email?: string;
     phone?: string;
     accountType?: string;
-    planKey?: string;
     acceptTerms?: string;
     subscribeNewsletter?: string;
   };
@@ -116,7 +115,6 @@ export async function signUpAction(
     confirmPassword: formData.get("confirmPassword"),
     phone: formData.get("phone"),
     accountType: formData.get("accountType"),
-    planKey: formData.get("planKey"),
     acceptTerms: formData.get("acceptTerms"),
     subscribeNewsletter: formData.get("subscribeNewsletter"),
   });
@@ -125,7 +123,6 @@ export async function signUpAction(
   const emailInput = formData.get("email") as string;
   const phone = formData.get("phone") as string;
   let accountType = formData.get("accountType") as string;
-  const planKey = formData.get("planKey") as string;
   const acceptTerms = formData.get("acceptTerms") as string;
   const subscribeNewsletter = formData.get("subscribeNewsletter") as string;
 
@@ -133,7 +130,7 @@ export async function signUpAction(
     return {
       error: parsed.error.issues[0]?.message ?? "Please check the form and try again.",
       step: 'email',
-      formValues: { displayName, email: emailInput, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
+      formValues: { displayName, email: emailInput, phone, accountType, acceptTerms, subscribeNewsletter },
     };
   }
 
@@ -144,7 +141,7 @@ export async function signUpAction(
     return {
       error: "Please use a real email address. Disposable emails are not allowed.",
       step: 'email',
-      formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
+      formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
     };
   }
 
@@ -156,7 +153,7 @@ export async function signUpAction(
       return {
         error: "This email domain doesn't appear to accept mail. Please check for typos.",
         step: 'email',
-        formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
+        formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
       };
     }
   }
@@ -174,7 +171,7 @@ export async function signUpAction(
     return {
       error: "This email is already registered. Please log in instead.",
       step: 'email',
-      formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
+      formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
     };
   }
 
@@ -188,7 +185,7 @@ export async function signUpAction(
     return {
       error: "This phone number is already registered. Please use a different number.",
       step: 'email',
-      formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
+      formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
     };
   }
 
@@ -225,7 +222,7 @@ export async function signUpAction(
       return {
         error: "This phone number is already registered. Please use a different number.",
         step: 'email',
-        formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
+        formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
       };
     }
 
@@ -234,7 +231,7 @@ export async function signUpAction(
       return {
         error: "This email is already registered. Please log in instead.",
         step: 'email',
-        formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
+        formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
       };
     }
 
@@ -242,7 +239,7 @@ export async function signUpAction(
     return {
       error: `Failed to create account: ${authError?.message || "unknown error"}`,
       step: 'email',
-      formValues: { displayName, email, phone, accountType, planKey, acceptTerms, subscribeNewsletter },
+      formValues: { displayName, email, phone, accountType, acceptTerms, subscribeNewsletter },
     };
   }
 
