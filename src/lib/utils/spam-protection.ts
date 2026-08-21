@@ -275,32 +275,45 @@ export function isValidPhoneNumber(phone: string): boolean {
 }
 
 export async function hasMxRecord(domain: string): Promise<boolean> {
-  try {
-    // Use Cloudflare's public DoH resolver (no API key needed)
+  // Cloudflare DoH. Returns `Status` on any well-formed response: 0 = NOERROR,
+  // 3 = NXDOMAIN. On NXDOMAIN there is no `Answer` key at all, which is why the
+  // previous `data.Answer && ...` produced `undefined` and the `?? true` fallback
+  // let every non-existent domain through — the check could never reject anything.
+  const query = async (type: "MX" | "A") => {
     const response = await fetch(
-      `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=MX`,
-      {
-        headers: { Accept: "application/dns-json" },
-        signal: AbortSignal.timeout(2000), // 2 second timeout
-      }
+      `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=${type}`,
+      { headers: { Accept: "application/dns-json" }, signal: AbortSignal.timeout(2000) }
     );
+    if (!response.ok) throw new Error(`DoH ${type} lookup returned ${response.status}`);
+    return (await response.json()) as {
+      Status?: number;
+      Answer?: Array<{ type: number; data: string }>;
+    };
+  };
 
-    if (!response.ok) {
-      // Fail open: if DoH lookup fails, allow the signup (don't block due to network issues)
-      console.log(`[MX_CHECK] DoH lookup failed for ${domain}: ${response.status}`);
-      return true;
+  try {
+    const mx = await query("MX");
+
+    // Malformed response - fail open rather than block a legitimate signup.
+    if (typeof mx.Status !== "number") return true;
+
+    // NXDOMAIN and friends: the domain does not resolve, so it cannot receive mail.
+    if (mx.Status !== 0) {
+      console.log(`[MX_CHECK] ${domain} does not resolve (DNS status ${mx.Status})`);
+      return false;
     }
 
-    const data = (await response.json()) as { Answer?: Array<{ type: number; data: string }> };
-    const hasMx = data.Answer && data.Answer.some((record) => record.type === 15);
+    if (Array.isArray(mx.Answer) && mx.Answer.some((r) => r.type === 15)) return true;
 
-    if (!hasMx) {
-      console.log(`[MX_CHECK] No MX record found for ${domain}`);
-    }
-
-    return hasMx ?? true; // Fail open if no Answer array
+    // The domain resolves but publishes no MX. RFC 5321 allows delivery to fall
+    // back to the A record, so only reject when there is no A record either.
+    const a = await query("A");
+    const hasA = a.Status === 0 && Array.isArray(a.Answer) && a.Answer.some((r) => r.type === 1);
+    if (!hasA) console.log(`[MX_CHECK] ${domain} has neither MX nor A record`);
+    return hasA;
   } catch (error) {
-    // Fail open on timeout or network error
+    // Fail open on timeout, network error, or non-ok response: a DNS blip must
+    // never block signups.
     console.log(`[MX_CHECK] Error checking MX for ${domain}:`, error);
     return true;
   }
