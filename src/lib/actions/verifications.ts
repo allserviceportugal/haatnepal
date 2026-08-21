@@ -6,10 +6,18 @@ import { createClient } from "@/lib/supabase/server";
 import { sendVerificationRequestReceivedEmail } from "@/lib/services/email";
 import type { SubscriptionTier } from "@/lib/supabase/types";
 
+export type VerificationFormState = {
+  error?: string;
+  values?: Record<string, string>;
+};
+
+const PLAN_ORDER: SubscriptionTier[] = ["normal", "business", "plus", "pro", "premium", "custom"];
+
 export async function submitVerificationRequestAction(
   planKey: Extract<SubscriptionTier, "plus" | "pro" | "premium">,
+  _prevState: VerificationFormState,
   formData: FormData
-) {
+): Promise<VerificationFormState> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -19,74 +27,102 @@ export async function submitVerificationRequestAction(
     redirect("/login?next=/dashboard/plan");
   }
 
-  // Validate planKey is one of the verification-gated tiers
   if (!["plus", "pro", "premium"].includes(planKey)) {
     revalidatePath("/dashboard/plan");
     redirect("/dashboard/plan");
   }
 
-  // Get current plan to ensure user doesn't already have this tier or higher
+  // Applicant type decides which fields are required, and is read from the
+  // profile rather than the form so it cannot be spoofed by the client.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("subscription_plans(key)")
+    .select("account_type, subscription_plans(key)")
     .eq("id", user.id)
     .single();
 
   const currentPlanKey = (profile as any)?.subscription_plans?.key as SubscriptionTier | null;
+  const applicantType = ((profile as any)?.account_type as "individual" | "business") ?? "individual";
 
-  // If user already has equal or higher plan, redirect
-  if (currentPlanKey) {
-    const PLAN_ORDER: SubscriptionTier[] = ["normal", "business", "plus", "pro", "premium", "custom"];
-    if (PLAN_ORDER.indexOf(planKey) <= PLAN_ORDER.indexOf(currentPlanKey)) {
-      revalidatePath("/dashboard/plan");
-      redirect("/dashboard/plan");
-    }
+  if (currentPlanKey && PLAN_ORDER.indexOf(planKey) <= PLAN_ORDER.indexOf(currentPlanKey)) {
+    revalidatePath("/dashboard/plan");
+    redirect("/dashboard/plan");
   }
 
-  // Extract form fields
-  const businessName = formData.get("businessName") as string;
-  const contactPersonName = formData.get("contactPersonName") as string;
-  const contactEmail = formData.get("contactEmail") as string;
-  const contactPhone = formData.get("contactPhone") as string;
-  const businessAddress = formData.get("businessAddress") as string;
-  const registrationCertificatePath = formData.get("registrationCertificatePath") as string;
+  const str = (k: string) => ((formData.get(k) as string) ?? "").trim();
 
-  // Validate required fields
-  if (!businessName || !contactPersonName || !contactEmail || !contactPhone || !businessAddress || !registrationCertificatePath) {
-    throw new Error("All fields are required");
+  // Shared across both applicant types
+  const contactPersonName = str("contactPersonName");
+  const contactEmail = str("contactEmail");
+  const contactPhone = str("contactPhone");
+  const address = str("businessAddress");
+  const panNumber = str("panNumber");
+  const documentPath = str("registrationCertificatePath");
+
+  // Type-specific
+  const businessName = str("businessName");
+  const businessRegistrationNumber = str("businessRegistrationNumber");
+  const citizenshipNumber = str("citizenshipNumber");
+
+  const values = {
+    contactPersonName, contactEmail, contactPhone, businessAddress: address,
+    panNumber, businessName, businessRegistrationNumber, citizenshipNumber,
+  };
+  const fail = (error: string): VerificationFormState => ({ error, values });
+
+  if (!contactPersonName) return fail(applicantType === "business" ? "Representative name is required." : "Full name is required.");
+  if (!contactEmail) return fail("Contact email is required.");
+  if (!contactPhone) return fail("Contact phone is required.");
+  if (!address) return fail(applicantType === "business" ? "Business address is required." : "Address is required.");
+  if (!panNumber) return fail(applicantType === "business" ? "Business PAN number is required." : "PAN number is required.");
+
+  if (applicantType === "business") {
+    if (!businessName) return fail("Business name is required.");
+    if (!businessRegistrationNumber) return fail("Business registration certificate number is required.");
+  } else {
+    if (!citizenshipNumber) return fail("Citizenship card number is required.");
   }
 
-  // Insert the verification request
-  const { error } = await supabase
-    .from("business_verification_requests")
-    .insert({
-      user_id: user.id,
-      requested_plan_key: planKey,
-      business_name: businessName,
-      contact_person_name: contactPersonName,
-      contact_email: contactEmail,
-      contact_phone: contactPhone,
-      business_address: businessAddress,
-      registration_certificate_path: registrationCertificatePath,
-      status: "pending",
-    });
+  if (!documentPath) {
+    return fail(
+      applicantType === "business"
+        ? "Please upload your business registration certificate."
+        : "Please upload a copy of your citizenship card or PAN card."
+    );
+  }
+
+  const { error } = await supabase.from("business_verification_requests").insert({
+    user_id: user.id,
+    requested_plan_key: planKey,
+    applicant_type: applicantType,
+    business_name: applicantType === "business" ? businessName : null,
+    business_registration_number: applicantType === "business" ? businessRegistrationNumber : null,
+    citizenship_number: applicantType === "individual" ? citizenshipNumber : null,
+    pan_number: panNumber,
+    contact_person_name: contactPersonName,
+    contact_email: contactEmail,
+    contact_phone: contactPhone,
+    business_address: address,
+    registration_certificate_path: documentPath,
+    status: "pending",
+  });
 
   if (error) {
-    throw error;
+    console.error("[VERIFICATION] Insert failed:", error.message);
+    return fail("We couldn't submit your request. Please try again.");
   }
 
   try {
     await sendVerificationRequestReceivedEmail(
-      businessName,
+      applicantType === "business" ? businessName : contactPersonName,
       contactPersonName,
       contactEmail,
       contactPhone,
       planKey
     );
   } catch (emailError) {
-    console.error("Failed to send verification request notification email:", emailError);
+    console.error("[VERIFICATION] Notification email failed:", emailError);
   }
 
   revalidatePath("/dashboard/plan");
-  redirect("/dashboard/plan");
+  redirect("/dashboard/plan?submitted=1");
 }
