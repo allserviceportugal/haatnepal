@@ -56,6 +56,7 @@ export async function submitVerificationRequestAction(
   const contactPhone = str("contactPhone");
   const address = str("businessAddress");
   const panNumber = str("panNumber");
+  const businessDescription = str("businessDescription");
   const documentPath = str("registrationCertificatePath");
 
   // Type-specific
@@ -66,6 +67,7 @@ export async function submitVerificationRequestAction(
   const values = {
     contactPersonName, contactEmail, contactPhone, businessAddress: address,
     panNumber, businessName, businessRegistrationNumber, citizenshipNumber,
+    businessDescription,
   };
   const fail = (error: string): VerificationFormState => ({ error, values });
 
@@ -74,6 +76,9 @@ export async function submitVerificationRequestAction(
   if (!contactPhone) return fail("Contact phone is required.");
   if (!address) return fail(applicantType === "business" ? "Business address is required." : "Address is required.");
   if (!panNumber) return fail(applicantType === "business" ? "Business PAN number is required." : "PAN number is required.");
+
+  if (!businessDescription) return fail("A description is required — it appears on your public profile.");
+  if (businessDescription.length > 2000) return fail("Description must be 2000 characters or fewer.");
 
   if (applicantType === "business") {
     if (!businessName) return fail("Business name is required.");
@@ -102,6 +107,7 @@ export async function submitVerificationRequestAction(
     contact_email: contactEmail,
     contact_phone: contactPhone,
     business_address: address,
+    business_description: businessDescription,
     registration_certificate_path: documentPath,
     status: "pending",
   });
@@ -109,6 +115,18 @@ export async function submitVerificationRequestAction(
   if (error) {
     console.error("[VERIFICATION] Insert failed:", error.message);
     return fail("We couldn't submit your request. Please try again.");
+  }
+
+  // Mirror onto the profile so it is live on /u/[userId] immediately. This column
+  // is already user-editable from the dashboard profile form, so this is not a
+  // privilege escalation; a failure here must not lose the submitted application.
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update({ business_description: businessDescription })
+    .eq("id", user.id);
+
+  if (profileError) {
+    console.error("[VERIFICATION] Profile description update failed:", profileError.message);
   }
 
   try {

@@ -27,6 +27,19 @@ function Field({
   );
 }
 
+function TextAreaField({
+  name, labelText, hint, placeholder, defaultValue,
+}: { name: string; labelText: string; hint?: string; placeholder?: string; defaultValue?: string }) {
+  return (
+    <div>
+      <label htmlFor={name} className={label}>{labelText}</label>
+      <textarea id={name} name={name} required rows={5} maxLength={2000}
+        className={input} placeholder={placeholder} defaultValue={defaultValue} />
+      {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
+    </div>
+  );
+}
+
 export function VerificationRequestForm({
   planKey,
   userId,
@@ -90,6 +103,21 @@ export function VerificationRequestForm({
           placeholder="contact@example.com" defaultValue={v.contactEmail} />
         <Field name="contactPhone" labelText="Phone" type="tel"
           placeholder="98XXXXXXXX" defaultValue={v.contactPhone} />
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="font-semibold text-slate-900">
+          {isBusiness ? "Business description" : "Profile description"}
+        </h2>
+        <TextAreaField
+          name="businessDescription"
+          labelText={isBusiness ? "Describe your business" : "Describe what you sell"}
+          hint="Shown publicly on your profile page. Up to 2000 characters."
+          placeholder={isBusiness
+            ? "What your business sells, where you operate, what makes you a trusted seller..."
+            : "What you sell, where you're based, anything buyers should know..."}
+          defaultValue={v.businessDescription}
+        />
       </div>
 
       <div className="space-y-3">
