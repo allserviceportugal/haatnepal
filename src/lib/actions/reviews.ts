@@ -43,7 +43,9 @@ export async function createReviewAction(formData: FormData) {
     return { success: true };
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return { error: (err as any).errors[0]?.message || 'Invalid input' };
+      // zod v4 renamed ZodError.errors to .issues; reading .errors returned
+      // undefined and threw a TypeError from inside this catch block.
+      return { error: err.issues[0]?.message || 'Invalid input' };
     }
     return { error: 'Failed to create review' };
   }
@@ -97,7 +99,9 @@ export async function updateReviewAction(formData: FormData) {
     return { success: true };
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return { error: (err as any).errors[0]?.message || 'Invalid input' };
+      // zod v4 renamed ZodError.errors to .issues; reading .errors returned
+      // undefined and threw a TypeError from inside this catch block.
+      return { error: err.issues[0]?.message || 'Invalid input' };
     }
     return { error: 'Failed to update review' };
   }
