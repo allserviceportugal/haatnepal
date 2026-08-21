@@ -94,12 +94,22 @@ export async function signUpAction(
     "unknown";
 
   // Check IP-based signup rate limit (100 signups/hour per IP)
-  const adminClient = createAdminClient();
-  const { count } = await adminClient
-    .from("signup_attempts")
-    .select("*", { count: "exact", head: true })
-    .eq("ip", clientIp)
-    .gt("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString());
+  let adminClient: ReturnType<typeof createAdminClient>;
+  let count: number | null = null;
+  try {
+    adminClient = createAdminClient();
+    ({ count } = await adminClient
+      .from("signup_attempts")
+      .select("*", { count: "exact", head: true })
+      .eq("ip", clientIp)
+      .gt("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString()));
+  } catch (err) {
+    console.error("[SIGNUP] Admin client unavailable:", err);
+    return {
+      error: "Signup is temporarily unavailable. Please try again in a moment.",
+      step: 'email',
+    };
+  }
 
   if ((count ?? 0) >= 100) {
     return {
@@ -255,7 +265,11 @@ export async function signUpAction(
   } catch (err) {
     console.error("[SIGNUP] OTP generation failed:", err);
     // Roll back: delete the auth user to free up email/phone for retry
-    await adminClient.auth.admin.deleteUser(authData.user.id);
+    try {
+      await adminClient.auth.admin.deleteUser(authData.user.id);
+    } catch (rollbackErr) {
+      console.error("[SIGNUP] Rollback delete failed:", rollbackErr);
+    }
     return {
       error: `Failed to generate verification code. Please try again.`,
       step: 'email',
@@ -268,7 +282,11 @@ export async function signUpAction(
   if (!emailResult.success) {
     console.error("[SIGNUP] OTP email sending failed:", emailResult.error);
     // Roll back: delete the auth user to free up email/phone for retry
-    await adminClient.auth.admin.deleteUser(authData.user.id);
+    try {
+      await adminClient.auth.admin.deleteUser(authData.user.id);
+    } catch (rollbackErr) {
+      console.error("[SIGNUP] Rollback delete failed:", rollbackErr);
+    }
     return {
       error: `Failed to send verification code: ${emailResult.error}`,
       step: 'email',
