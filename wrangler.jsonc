@@ -7,7 +7,7 @@
   "vars": {
     "NEXT_PUBLIC_SUPABASE_URL": "https://bmlfzeoqveysbzrfzmpb.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_6A4Mn0giqkquOJQX3SlZ9g_WHDxTzNd",
-    "NEXT_PUBLIC_APP_URL": "https://haatnepal.pages.dev"
+    "NEXT_PUBLIC_APP_URL": "https://haatnepal.com"
   },
   "assets": {
     "directory": ".open-next/assets",
