@@ -22,6 +22,39 @@ export function ResetPasswordForm() {
       try {
         const supabase = createClient();
 
+        // Supabase's recovery link lands here with the tokens in the URL *hash*
+        // (implicit flow): #access_token=...&refresh_token=...&type=recovery.
+        // The hash is never sent to the server and is not in searchParams, so it
+        // has to be parsed here and exchanged for a session explicitly.
+        const hash = typeof window !== "undefined" ? window.location.hash.replace(/^#/, "") : "";
+        const hashParams = new URLSearchParams(hash);
+
+        // An expired or already-used link comes back as #error=...&error_description=...
+        const hashError = hashParams.get("error_description") || hashParams.get("error");
+        if (hashError) {
+          setSessionError("Invalid or expired reset link. Please request a new one.");
+          setSessionLoading(false);
+          return;
+        }
+
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) {
+            setSessionError("Invalid or expired reset link. Please request a new one.");
+            setSessionLoading(false);
+            return;
+          }
+          // Drop the tokens from the URL so they don't linger in history.
+          window.history.replaceState({}, "", window.location.pathname);
+          setSessionLoading(false);
+          return;
+        }
+
         // Check if we have an active session (from recovery link)
         const { data: { user } } = await supabase.auth.getUser();
 
@@ -44,7 +77,7 @@ export function ResetPasswordForm() {
           return;
         }
 
-        // No code and no session = link is invalid
+        // No tokens, no code and no session = link is invalid
         setSessionError("Invalid or expired reset link. Please request a new one.");
         setSessionLoading(false);
       } catch (err) {
