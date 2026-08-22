@@ -20,7 +20,15 @@ export default async function PublicProfilePage({
   }
 
   const supabase = await createClient();
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", userId).single();
+  // Explicit columns: anonymous visitors no longer hold SELECT on email/phone
+  // (migration 0067), so `select("*")` would fail for them.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select(
+      "id, display_name, phone_verified, avatar_url, district, city, rating_avg, rating_count, created_at, account_type, subscription_plan_id, business_description, logo_url, cover_image_url, province, email_confirmed, role"
+    )
+    .eq("id", userId)
+    .single();
   if (!profile) notFound();
 
   const listings = await getListings(supabase, { sellerId: userId, limit: 40 });

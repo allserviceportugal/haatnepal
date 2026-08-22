@@ -1,9 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CategoryAttribute, ListingWithRelations } from "@/lib/supabase/types";
 
-// Public listing select (no phone/email) — safe for anonymous users
+// Public listing select — safe for anonymous users.
+// Columns are listed explicitly rather than using `*`: anonymous users no longer
+// hold SELECT on listings.contact_phone (migration 0067), and `*` would fail for
+// them. Add a new column here for it to appear publicly; a new *contact* column
+// must also be revoked from anon in a migration.
 const LISTING_SELECT = `
-  *,
+  id, seller_id, category_id, title, description, price, currency, condition, listing_type, status, district, city, created_at, updated_at, expires_at, pickup_available, featured_at, featured_until, province, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, listing_number, view_count, bluebook_status, registration_year, manufacturing_year, import_status, owner_count, is_modified, accident_history, service_history, food_freshness, best_before_date, manufacturing_date, ingredients, storage_instructions, allergen_info, is_food, is_agriculture, harvest_date, unit_of_sale, min_order_quantity, farm_location, for_rent, rental_rate_period, price_on_request, transaction_mode, allow_offers, allow_checkout, allow_contact, allow_messaging, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url,
   listing_images(*),
   categories(id, name, slug, parent_id),
   profiles!listings_seller_id_fkey(id, display_name, district, rating_avg, rating_count, account_type),

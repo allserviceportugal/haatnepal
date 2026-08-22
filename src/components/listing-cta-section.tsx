@@ -167,14 +167,6 @@ export function ListingCTASection({
       {/* Anonymous user: show login prompts */}
       {!currentUserId && (
         <>
-          {contactPhone && (
-            <button
-              onClick={() => router.push(`/login?next=/listing/${listingId}`)}
-              className="w-full rounded-full bg-green-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-green-200 transition hover:bg-green-700"
-            >
-              ☎️ Login to call seller
-            </button>
-          )}
           {config.allow_contact && (
             <button
               onClick={() => router.push(`/login?next=/listing/${listingId}`)}
@@ -205,14 +197,15 @@ export function ListingCTASection({
       {/* Logged-in user: show available CTAs */}
       {currentUserId && (
         <>
-          {/* Call seller button - always visible if phone available */}
-          {contactPhone && (
+          {/* Single call CTA. Respects allow_contact — the previous version
+              ignored it, so the phone showed even where contact was disabled. */}
+          {config.allow_contact && contactPhone && (
             phoneRevealed ? (
               <button
                 onClick={handlePhoneClick}
                 className="w-full rounded-full bg-green-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-green-200 transition hover:bg-green-700"
               >
-                ☎️ Call {sellerPhone}
+                ☎️ Call {contactPhone}
               </button>
             ) : (
               <button
@@ -249,29 +242,6 @@ export function ListingCTASection({
           {(config.default_transaction_mode === 'classified' ||
             config.default_transaction_mode === 'hybrid') && (
             <>
-              {config.allow_contact && sellerPhone ? (
-                <>
-                  {phoneRevealed ? (
-                    <button
-                      onClick={handlePhoneClick}
-                      className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-orange-200 transition hover:bg-orange-600"
-                    >
-                      📞 Call {contactPhone}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={async () => {
-                        await handleContactReveal();
-                        setPhoneRevealed(true);
-                      }}
-                      className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-orange-200 transition hover:bg-orange-600"
-                    >
-                      📞 Call us
-                    </button>
-                  )}
-                </>
-              ) : null}
-
               {config.allow_contact && sellerPhone ? (
                 <button
                   onClick={handleWhatsAppClick}

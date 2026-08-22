@@ -109,6 +109,9 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     sellerEmail = contact?.email;
   }
 
+  // The CTA section renders its own "Message {seller}" button for classified /
+  // hybrid listings. Track that so the seller card below does not render a second
+  // button firing the identical startConversationAction.
   // Get transaction config for this listing
   const transactionConfig = await getListingTransactionConfig(supabase, id, user?.id);
 
@@ -157,6 +160,15 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     ? await isDescendantOfSlug(supabase, listing.category_id, "jobs")
     : listing.categories?.slug === "jobs";
 
+
+  const ctaShowsMessageButton =
+    !isOwner &&
+    !isJobsListing &&
+    listing.status === "active" &&
+    !!transactionConfig &&
+    transactionConfig.allow_message &&
+    (transactionConfig.default_transaction_mode === "classified" ||
+      transactionConfig.default_transaction_mode === "hybrid");
   // Check if this is an agriculture listing
   const isAgricultureListing = listing.categories?.parent_id
     ? await isDescendantOfSlug(supabase, listing.category_id, "agriculture")
@@ -475,7 +487,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                   sellerId={listing.seller_id}
                   sellerPhone={sellerPhone}
                   sellerEmail={sellerEmail}
-                  listingContactPhone={listing.contact_phone}
+                  listingContactPhone={user ? listing.contact_phone : null}
                   sellerName={listing.profiles?.display_name ?? "Seller"}
                   listingTitle={listing.title}
                   listingPrice={listing.price}
@@ -582,7 +594,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                   ? "View business profile & all listings →"
                   : "View profile & other listings →"}
               </Link>
-              {!isJobsListing && (
+              {!isJobsListing && !ctaShowsMessageButton && (
                 <form action={startConversationAction.bind(null, listing.id)} className="mt-4">
                   <button
                     type="submit"

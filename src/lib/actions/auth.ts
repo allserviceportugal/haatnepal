@@ -170,8 +170,12 @@ export async function signUpAction(
 
   const supabase = await createClient();
 
-  // Check if email or phone already exist
-  const { data: existingEmail } = await supabase
+  // Check if email or phone already exist.
+  // Uses the admin client: the visitor is anonymous at this point, and anon no
+  // longer holds SELECT on profiles.email/phone (migration 0067). Filtering on a
+  // column requires SELECT on it, so the anon client would silently match nothing
+  // and this duplicate check would never fire.
+  const { data: existingEmail } = await adminClient
     .from("profiles")
     .select("id")
     .eq("email", email)
@@ -185,7 +189,7 @@ export async function signUpAction(
     };
   }
 
-  const { data: existingPhone } = await supabase
+  const { data: existingPhone } = await adminClient
     .from("profiles")
     .select("id")
     .eq("phone", phone)
