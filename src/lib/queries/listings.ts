@@ -268,6 +268,39 @@ export async function getFavoriteListingIds(supabase: SupabaseClient, userId: st
   return new Set((data ?? []).map((row) => row.listing_id));
 }
 
+export type CategoryCrumb = { id: string; name: string; slug: string };
+
+// Ancestor chain for a category, ordered root -> leaf (inclusive).
+// Walks parent_id over a single fetch of the tree, the same approach as
+// isDescendantOfSlug above. Guards against a parent cycle so a bad row can
+// never spin here.
+export async function getCategoryPath(
+  supabase: SupabaseClient,
+  categoryId: string | null | undefined
+): Promise<CategoryCrumb[]> {
+  if (!categoryId) return [];
+
+  const { data } = await supabase.from("categories").select("id, name, slug, parent_id");
+  if (!data) return [];
+
+  const byId = new Map<string, { id: string; name: string; slug: string; parent_id: string | null }>();
+  data.forEach((c: { id: string; name: string; slug: string; parent_id: string | null }) =>
+    byId.set(c.id, c)
+  );
+
+  const path: CategoryCrumb[] = [];
+  const seen = new Set<string>();
+  let current = byId.get(categoryId);
+
+  while (current && !seen.has(current.id)) {
+    seen.add(current.id);
+    path.unshift({ id: current.id, name: current.name, slug: current.slug });
+    current = current.parent_id ? byId.get(current.parent_id) : undefined;
+  }
+
+  return path;
+}
+
 export async function getSubcategories(supabase: SupabaseClient, topLevelCategoryId: string) {
   const { data } = await supabase
     .from("categories")

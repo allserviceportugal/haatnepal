@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
-import { getListingById, isDescendantOfSlug, getSellerContact } from "@/lib/queries/listings";
+import { getListingById, isDescendantOfSlug, getSellerContact, getCategoryPath } from "@/lib/queries/listings";
 import { getListingTransactionConfig } from "@/lib/queries/transaction_config";
 import { getPlanLimits } from "@/lib/actions/check-listing-limits";
 import { getListingReviews, getListingAverageRating, getUserReviewForListing } from "@/lib/queries/reviews";
@@ -20,6 +20,7 @@ import { withdrawJobApplicationAction } from "@/lib/actions/job-applications";
 import { JobApplicationForm } from "@/components/job-application-form";
 import { ViewTracker } from "@/components/view-tracker";
 import { ListingImageGallery } from "@/components/listing-image-gallery";
+import { CategoryBreadcrumb } from "@/components/category-breadcrumb";
 import { formatPrice, formatSalary, timeAgo, isWithinEditWindow } from "@/lib/format";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -172,6 +173,8 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
   const images = [...listing.listing_images].sort((a, b) => a.sort_order - b.sort_order);
 
+  const categoryPath = await getCategoryPath(supabase, listing.category_id);
+
   // Fetch reviews
   const reviews = await getListingReviews(supabase, id);
   const ratingData = await getListingAverageRating(supabase, id);
@@ -184,6 +187,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       {/* Track views for non-owners only */}
       {!isOwner && <ViewTracker listingId={listing.id} />}
+      <CategoryBreadcrumb path={categoryPath} className="mb-6" />
       <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
         <div>
           <ListingImageGallery images={images} alt={listing.title} />
@@ -347,15 +351,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
         <div className="space-y-6">
           <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
-            {listing.categories && (
-              <Link
-                href={`/c/${listing.categories.slug}`}
-                className="text-xs font-semibold uppercase tracking-[0.14em] text-orange-500"
-              >
-                {listing.categories.name}
-              </Link>
-            )}
-            <div className="mt-2 flex items-start gap-2">
+            <div className="flex items-start gap-2">
               <h1 className="flex-1 text-2xl font-black text-slate-900">{listing.title}</h1>
               {listing.featured_until !== null && new Date(listing.featured_until) > new Date() && (
                 <span className="rounded bg-amber-400 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-950">

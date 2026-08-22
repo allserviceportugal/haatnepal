@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
-import { getEffectiveCategoryAttributes, getListings, getSubcategories } from "@/lib/queries/listings";
+import { getEffectiveCategoryAttributes, getListings, getSubcategories, getCategoryPath } from "@/lib/queries/listings";
 import { ListingCard } from "@/components/listing-card";
 import { CategoryFilterSidebar } from "@/components/category-filter-sidebar";
+import { CategoryBreadcrumb } from "@/components/category-breadcrumb";
 
 type SearchParams = {
   q?: string;
@@ -56,9 +57,10 @@ export default async function CategoryPage({
 
   if (!category) notFound();
 
-  const [subcategories, attributes] = await Promise.all([
+  const [subcategories, attributes, categoryPath] = await Promise.all([
     getSubcategories(supabase, category.id),
     getEffectiveCategoryAttributes(supabase, category.id),
+    getCategoryPath(supabase, category.id),
   ]);
 
   const isJobsCategory = category.slug === "jobs";
@@ -79,6 +81,7 @@ export default async function CategoryPage({
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <CategoryBreadcrumb path={categoryPath} currentIsLeaf className="mb-4" />
       <h1 className="text-3xl font-black text-slate-900">{category.name}</h1>
       <p className="mt-2 text-slate-600">
         {listings.length} active listing{listings.length === 1 ? "" : "s"}
