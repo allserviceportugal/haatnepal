@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { getListingById, isDescendantOfSlug, getSellerContact } from "@/lib/queries/listings";
 import { getListingTransactionConfig } from "@/lib/queries/transaction_config";
+import { getPlanLimits } from "@/lib/actions/check-listing-limits";
 import { getListingReviews, getListingAverageRating, getUserReviewForListing } from "@/lib/queries/reviews";
 import { ReviewForm } from "@/components/review-form";
 import { ReviewList } from "@/components/review-list";
@@ -115,33 +116,16 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
   // Get transaction config for this listing
   const transactionConfig = await getListingTransactionConfig(supabase, id, user?.id);
 
+  // One shared helper decides quota, so this page and featureListingAction can no
+  // longer disagree. The old inline copy treated a missing plan as "unlimited"
+  // (showing the free button) while the action treated it as "no quota" (rejecting
+  // the click).
   let canFeatureFree = false;
-  if (isOwner) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("subscription_plans(monthly_featured_quota)")
-      .eq("id", user.id)
-      .single();
-    const plan = (
-      profile as unknown as { subscription_plans: { monthly_featured_quota: number | null } | null } | null
-    )?.subscription_plans;
-
-    const quota = plan?.monthly_featured_quota ?? null;
-    if (quota === null) {
-      // Unlimited (Custom plan)
-      canFeatureFree = true;
-    } else if (quota === 0) {
-      // No free features (Normal, Business plans)
-      canFeatureFree = false;
-    } else {
-      // Finite quota (Pro plan with 20) - count this month's featured listings
-      const { count } = await supabase
-        .from("listings")
-        .select("id", { count: "exact", head: true })
-        .eq("seller_id", user.id)
-        .gte("featured_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
-      canFeatureFree = (count ?? 0) < quota;
-    }
+  let featuredMessage: string | undefined;
+  if (isOwner && user) {
+    const limits = await getPlanLimits(supabase, user.id);
+    canFeatureFree = limits.canFeatureFree;
+    featuredMessage = limits.featuredMessage;
   }
 
   let isFavorited = false;
@@ -469,6 +453,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                     listingId={listing.id}
                     featuredUntil={listing.featured_until}
                     canFeatureFree={canFeatureFree}
+                    featuredMessage={featuredMessage}
                   />
                 </>
               ) : (

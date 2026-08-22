@@ -4,6 +4,14 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { getPlanLimits } from "@/lib/actions/check-listing-limits";
+import {
+  getFeaturedPackage,
+  FEATURED_PACKAGES,
+  PAID_FEATURING_ENABLED,
+  PAID_FEATURING_UNAVAILABLE_MESSAGE,
+  durationOptionsForPlan,
+} from "@/lib/constants/featured";
 import { listingSchema } from "@/lib/validations/listing";
 import { isDescendantOfSlug } from "@/lib/queries/listings";
 
@@ -90,45 +98,6 @@ function startOfCurrentMonthISO() {
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 }
 
-async function checkListingQuota(
-  supabase: SupabaseClient,
-  userId: string
-): Promise<{ error: string | null; listing_duration_days: number | null }> {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, subscription_plan_id, subscription_plans(name, monthly_listing_quota, listing_duration_days)")
-    .eq("id", userId)
-    .single();
-
-  // Admins have unlimited listings
-  if ((profile as any)?.role === "admin") {
-    return { error: null, listing_duration_days: (profile as any)?.subscription_plans?.listing_duration_days ?? null };
-  }
-
-  const plan = (
-    profile as unknown as { subscription_plans: { name: string; monthly_listing_quota: number | null; listing_duration_days: number | null } | null } | null
-  )?.subscription_plans;
-
-  if (!plan || plan.monthly_listing_quota === null) {
-    return { error: null, listing_duration_days: plan?.listing_duration_days ?? null }; // unlimited (or no plan resolved — fail open rather than block posting)
-  }
-
-  const { count } = await supabase
-    .from("listings")
-    .select("id", { count: "exact", head: true })
-    .eq("seller_id", userId)
-    .gte("created_at", startOfCurrentMonthISO());
-
-  if ((count ?? 0) >= plan.monthly_listing_quota) {
-    return {
-      error: `You've used all ${plan.monthly_listing_quota} of your free listings this month on the ${plan.name} plan. Upgrade on the Plan page for more.`,
-      listing_duration_days: plan.listing_duration_days,
-    };
-  }
-
-  return { error: null, listing_duration_days: plan.listing_duration_days };
-}
-
 async function saveAttributeValues(supabase: SupabaseClient, listingId: string, formData: FormData) {
   await supabase.from("listing_attribute_values").delete().eq("listing_id", listingId);
 
@@ -180,18 +149,24 @@ export async function createListingAction(
     };
   }
 
-  const quotaCheckResult = await checkListingQuota(supabase, user.id);
-  if (quotaCheckResult.error) {
-    return { error: quotaCheckResult.error };
+  const limits = await getPlanLimits(supabase, user.id);
+  if (!limits.canCreate) {
+    return { error: limits.listingMessage ?? "You've used all of your listing slots." };
   }
 
   const { title, description, price, priceOnRequest, categoryId, condition, listingType, district, city, municipality, ward_number, tole, land_unit_system, land_ropani, land_aana, land_paisa, land_daam, land_bigha, land_kattha, land_dhur, land_area_sqft, company_name, salary_min, salary_max, salary_period, salary_negotiable, vacancies_count, application_deadline, external_apply_url, registrationYear, manufacturingYear, bluebookStatus, importStatus, ownerCount, isModified, accidentHistory, serviceHistory, foodFreshness, bestBeforeDate, manufacturingDate, ingredients, storageInstructions, allergenInfo, harvestDate, unitOfSale, minOrderQuantity, farmLocation, forRent, rentalRatePeriod, contact_phone } =
     parsed.data;
   const pickupAvailable = formData.get("pickupAvailable") === "on";
 
-  // Compute expires_at based on listing_duration_days from the subscription plan
+  // Seller picks how long the listing runs, capped by their plan's
+  // listing_duration_days. Anything out of range falls back to the plan cap
+  // rather than being trusted from the form.
+  const allowedDurations = durationOptionsForPlan(limits.listingDurationDays);
+  const requestedDuration = Number(formData.get("durationDays"));
+  const durationDays = allowedDurations.includes(requestedDuration)
+    ? requestedDuration
+    : limits.listingDurationDays;
   const now = new Date();
-  const durationDays = quotaCheckResult.listing_duration_days ?? 60; // Default to 60 if not set
   const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString();
 
   // Compute is_agriculture by checking if categoryId is a descendant of "agriculture"
@@ -275,6 +250,35 @@ export async function createListingAction(
 
   await saveAttributeValues(supabase, listing.id, formData);
   await saveDeliveryOptions(supabase, listing.id, formData);
+
+  // Optional plan-included boost chosen during creation. Re-checks quota rather
+  // than trusting the checkbox, and a failure here must not lose the listing.
+  if (formData.get("featureNow") === "on" && limits.canFeatureFree) {
+    const pkg = FEATURED_PACKAGES.free_14;
+    const featuredAt = new Date();
+    const featuredUntil = new Date(featuredAt.getTime() + pkg.days * 24 * 60 * 60 * 1000);
+
+    const { error: ledgerError } = await supabase.from("listing_feature_purchases").insert({
+      listing_id: listing.id,
+      seller_id: user.id,
+      amount_npr: 0,
+      status: "completed",
+      source: "plan",
+      package_key: pkg.key,
+      duration_days: pkg.days,
+      payment_reference: "plan-included",
+    });
+
+    if (ledgerError) {
+      console.error("[CREATE] Feature-on-create ledger insert failed:", ledgerError.message);
+    } else {
+      await supabase
+        .from("listings")
+        .update({ featured_at: featuredAt.toISOString(), featured_until: featuredUntil.toISOString() })
+        .eq("id", listing.id)
+        .eq("seller_id", user.id);
+    }
+  }
 
   revalidatePath("/");
   redirect(`/listing/${listing.id}`);
@@ -424,8 +428,14 @@ export async function markListingSoldAction(listingId: string) {
   revalidatePath("/dashboard/listings");
 }
 
-export type FeatureListingState = { error?: string };
+export type FeatureListingState = { error?: string; success?: string };
 
+/**
+ * Feature a listing using a plan-included boost (14 days, no charge).
+ * Every feature event is recorded in listing_feature_purchases so free and paid
+ * boosts share one ledger and quota can be counted by event rather than by
+ * "listings carrying a featured_at this month".
+ */
 export async function featureListingAction(
   listingId: string,
   _prevState: FeatureListingState,
@@ -442,7 +452,7 @@ export async function featureListingAction(
 
   const { data: listing } = await supabase
     .from("listings")
-    .select("id, seller_id")
+    .select("id, seller_id, status")
     .eq("id", listingId)
     .eq("seller_id", user.id)
     .single();
@@ -451,58 +461,101 @@ export async function featureListingAction(
     return { error: "Listing not found." };
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, subscription_plans(name, monthly_featured_quota)")
-    .eq("id", user.id)
-    .single();
-
-  // Admins have unlimited featured listings
-  if ((profile as any)?.role === "admin") {
-    // Skip quota check and proceed to feature the listing
-  } else {
-    const plan = (
-      profile as unknown as { subscription_plans: { name: string; monthly_featured_quota: number | null } | null } | null
-    )?.subscription_plans;
-
-    if (!plan || plan.monthly_featured_quota === 0) {
-      return { error: "Your plan doesn't include featured listings. Upgrade to Plus or higher on the Plan page." };
-    }
-
-    if (plan.monthly_featured_quota !== null) {
-      const { count } = await supabase
-        .from("listings")
-        .select("id", { count: "exact", head: true })
-        .eq("seller_id", user.id)
-        .gte("featured_at", startOfCurrentMonthISO());
-
-      if ((count ?? 0) >= plan.monthly_featured_quota) {
-        return {
-          error: `You've used all ${plan.monthly_featured_quota} featured listings this month on the ${plan.name} plan. Upgrade for more.`,
-        };
-      }
-    }
+  if (listing.status !== "active") {
+    return { error: "Only active listings can be featured. Republish it first." };
   }
 
-  const featuredAt = new Date();
-  const featuredUntil = new Date(featuredAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const limits = await getPlanLimits(supabase, user.id);
+  if (!limits.canFeatureFree) {
+    return { error: limits.featuredMessage ?? "No featured boosts remaining on your plan." };
+  }
 
-  await supabase
+  const pkg = FEATURED_PACKAGES.free_14;
+  const featuredAt = new Date();
+  const featuredUntil = new Date(featuredAt.getTime() + pkg.days * 24 * 60 * 60 * 1000);
+
+  const { error: ledgerError } = await supabase.from("listing_feature_purchases").insert({
+    listing_id: listingId,
+    seller_id: user.id,
+    amount_npr: 0,
+    status: "completed",
+    source: "plan",
+    package_key: pkg.key,
+    duration_days: pkg.days,
+    payment_reference: "plan-included",
+  });
+
+  if (ledgerError) {
+    console.error("[FEATURE] Ledger insert failed:", ledgerError.message);
+    return { error: "Couldn't feature this listing. Please try again." };
+  }
+
+  const { error: updateError } = await supabase
     .from("listings")
     .update({ featured_at: featuredAt.toISOString(), featured_until: featuredUntil.toISOString() })
     .eq("id", listingId)
     .eq("seller_id", user.id);
 
+  if (updateError) {
+    console.error("[FEATURE] Listing update failed:", updateError.message);
+    return { error: "Couldn't feature this listing. Please try again." };
+  }
+
   revalidatePath(`/listing/${listingId}`);
   revalidatePath("/dashboard/listings");
-
-  return {};
+  return { success: `Featured for ${pkg.days} days.` };
 }
 
+/**
+ * Paid boost (NPR 44 / 74 / 99).
+ *
+ * There is no payment gateway: no SDK, no merchant credentials, no callback
+ * route. The previous implementation inserted a row claiming status 'completed'
+ * with a null payment_reference and then featured the listing immediately, so any
+ * user got unlimited "paid" boosts for free and the table asserted revenue that
+ * was never received. Until a gateway exists this refuses rather than pretending.
+ */
 export async function purchaseFeatureBoostAction(
   listingId: string,
   _prevState: FeatureListingState,
-  _formData: FormData
+  formData: FormData
+): Promise<FeatureListingState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in." };
+  }
+
+  const pkg = getFeaturedPackage(String(formData.get("packageKey") ?? ""));
+  if (!pkg || pkg.source !== "paid") {
+    return { error: "Choose a boost package." };
+  }
+
+  if (!PAID_FEATURING_ENABLED) {
+    return { error: PAID_FEATURING_UNAVAILABLE_MESSAGE };
+  }
+
+  // Unreachable until a gateway is wired up. When it is, this must record the
+  // purchase as 'pending', redirect to the provider, and only set featured_at
+  // from a verified callback — never here.
+  return { error: PAID_FEATURING_UNAVAILABLE_MESSAGE };
+}
+
+/**
+ * Republish an archived / sold listing.
+ *
+ * Separate from updateListingAction, which never touches status or expires_at and
+ * is gated to the 15-minute post-creation edit window — republishing has to work
+ * long after that. Re-checks the live-slot quota so a seller cannot exceed their
+ * plan by reviving old listings.
+ */
+export async function republishListingAction(
+  listingId: string,
+  _prevState: FeatureListingState,
+  formData: FormData
 ): Promise<FeatureListingState> {
   const supabase = await createClient();
   const {
@@ -515,7 +568,7 @@ export async function purchaseFeatureBoostAction(
 
   const { data: listing } = await supabase
     .from("listings")
-    .select("id, seller_id")
+    .select("id, seller_id, status")
     .eq("id", listingId)
     .eq("seller_id", user.id)
     .single();
@@ -524,37 +577,45 @@ export async function purchaseFeatureBoostAction(
     return { error: "Listing not found." };
   }
 
-  // Insert purchase record (placeholder payment, status='completed')
-  const { error: purchaseError } = await supabase
-    .from("listing_feature_purchases")
-    .insert({
-      listing_id: listingId,
-      seller_id: user.id,
-      amount_npr: 44,
-      status: "completed",
-      payment_reference: null,
-    });
-
-  if (purchaseError) {
-    console.error("[PURCHASE_FEATURE] Insert failed:", purchaseError);
-    return { error: "Failed to purchase feature boost" };
+  if (listing.status === "active") {
+    return { error: "This listing is already live." };
   }
 
-  // Set featured_at/featured_until (same as free path)
-  const featuredAt = new Date();
-  const featuredUntil = new Date(featuredAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+  if (!["archived", "expired", "sold"].includes(listing.status)) {
+    return { error: "This listing can't be republished." };
+  }
 
-  await supabase
+  const limits = await getPlanLimits(supabase, user.id);
+  if (!limits.canCreate) {
+    return {
+      error:
+        limits.listingMessage ??
+        "All of your listing slots are in use. Archive another listing or upgrade your plan.",
+    };
+  }
+
+  const allowedDurations = durationOptionsForPlan(limits.listingDurationDays);
+  const requested = Number(formData.get("durationDays"));
+  const durationDays = allowedDurations.includes(requested) ? requested : limits.listingDurationDays;
+  const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+
+  const { error } = await supabase
     .from("listings")
     .update({
-      featured_at: featuredAt.toISOString(),
-      featured_until: featuredUntil.toISOString(),
+      status: "active",
+      expires_at: expiresAt,
+      status_reason: "republished by seller",
+      status_changed_by: user.id,
     })
     .eq("id", listingId)
     .eq("seller_id", user.id);
 
+  if (error) {
+    console.error("[REPUBLISH] Failed:", error.message);
+    return { error: "Couldn't republish this listing. Please try again." };
+  }
+
   revalidatePath(`/listing/${listingId}`);
   revalidatePath("/dashboard/listings");
-
-  return {};
+  return { success: `Republished for ${durationDays} days.` };
 }

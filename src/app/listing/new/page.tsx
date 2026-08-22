@@ -5,6 +5,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { ListingForm } from "@/components/listing-form";
 import { createListingAction } from "@/lib/actions/listings";
 import { checkListingLimits } from "@/lib/actions/check-listing-limits";
+import { durationOptionsForPlan } from "@/lib/constants/featured";
 
 export default async function NewListingPage() {
   if (!isSupabaseConfigured()) {
@@ -40,10 +41,16 @@ export default async function NewListingPage() {
       <h1 className="text-3xl font-black text-slate-900">Post a listing</h1>
       <p className="mt-2 text-slate-600">Reach buyers across Nepal in minutes.</p>
 
-      {!limits.canCreate && (
+      {limits && !limits.canCreate && (
         <div className="mt-6 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700">
-          <p className="font-semibold">Listing quota reached</p>
-          <p className="mt-1">You've used all {limits.listingsLimit} of your free listings this month on the {limits.currentPlan} plan.</p>
+          <p className="font-semibold">Listing slots full</p>
+          <p className="mt-1">{limits.listingMessage}</p>
+          <Link
+            href="/dashboard/listings?status=archived"
+            className="mt-3 mr-2 inline-block rounded-full border border-orange-300 px-4 py-2 text-xs font-bold text-orange-700 hover:bg-orange-100"
+          >
+            Manage listings
+          </Link>
           <Link
             href="/dashboard/plan"
             className="mt-3 inline-block rounded-full bg-orange-600 px-4 py-2 text-xs font-bold text-white hover:bg-orange-700"
@@ -53,30 +60,31 @@ export default async function NewListingPage() {
         </div>
       )}
 
-      {limits.canCreate && limits.listingsRemaining <= 1 && (
-        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <p className="font-semibold">{limits.listingsRemaining} listing remaining</p>
-          <p className="mt-1">You have {limits.listingsRemaining} listing{limits.listingsRemaining === 1 ? '' : 's'} left this month on your {limits.currentPlan} plan.</p>
-          <Link
-            href="/dashboard/plan"
-            className="mt-3 inline-block rounded-full bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700"
-          >
-            View plans
-          </Link>
-        </div>
-      )}
-
-      {limits.canCreate && limits.listingsRemaining > 1 && (
+      {limits && limits.canCreate && limits.listingsLimit !== null && (
         <div className="mt-6 text-sm text-slate-600">
-          <p>{limits.listingsUsed} of {limits.listingsLimit} free listings used this month</p>
+          <p>
+            {limits.listingsUsed} of {limits.listingsLimit} listing slots in use on the{" "}
+            {limits.planName} plan
+            {limits.listingsRemaining !== null && limits.listingsRemaining <= 1 && (
+              <span className="font-semibold text-amber-700">
+                {" "}— {limits.listingsRemaining} left
+              </span>
+            )}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            Archived and sold listings don&apos;t use a slot.
+          </p>
         </div>
       )}
 
       <div className="mt-8 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        {!limits.canCreate ? (
+        {limits && !limits.canCreate ? (
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-6 py-8 text-center">
             <p className="text-slate-700 font-semibold">Upgrade your plan to post more listings</p>
-            <p className="mt-2 text-sm text-slate-600">Your {limits.currentPlan} plan limit has been reached.</p>
+            <p className="mt-2 text-sm text-slate-600">
+              All {limits.listingsLimit} of your {limits.planName} plan slots are in use. Archive a
+              listing to free one up, or upgrade.
+            </p>
             <Link
               href="/dashboard/plan"
               className="mt-4 inline-block rounded-full bg-orange-500 px-6 py-2 text-sm font-bold text-white hover:bg-orange-600"
@@ -91,6 +99,12 @@ export default async function NewListingPage() {
             categoryAttributes={categoryAttributes ?? []}
             couriers={couriers ?? []}
             userId={user.id}
+            durationOptions={durationOptionsForPlan(limits?.listingDurationDays)}
+            defaultDurationDays={limits?.listingDurationDays}
+            featureOption={{
+              canFeatureFree: Boolean(limits?.canFeatureFree),
+              featuredMessage: limits?.featuredMessage,
+            }}
             submitLabel="Publish listing"
           />
         )}

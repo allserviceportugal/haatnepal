@@ -1,182 +1,168 @@
 "use server";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
-export type ListingLimitCheckResult = {
-  canCreate: boolean;
-  canFeature: boolean;
+/**
+ * The single source of truth for listing and featured quotas.
+ *
+ * This previously existed twice — here and as `checkListingQuota` in
+ * listings.ts — and the two disagreed in ways that were user-visible:
+ *   - on a missing plan, listings.ts failed *open* (allow) and this file failed
+ *     *closed* (block), so the create page and the create action could contradict
+ *     each other;
+ *   - `plan.monthly_listing_quota || -1` turned a legitimate quota of 0 into
+ *     "unlimited".
+ *
+ * Quota is a *live-slot* model: it counts listings currently occupying a slot,
+ * not listings created this month. Archived, sold and draft listings therefore
+ * free their slot up, which is what makes republishing meaningful. (The old
+ * created-this-month count also meant deleting a listing silently refunded quota
+ * while archiving or selling one did not.)
+ */
+
+// Statuses that occupy one of the seller's paid slots. Not exported: this file
+// carries "use server", which permits only async function exports.
+const SLOT_CONSUMING_STATUSES = ["active", "sold"] as const;
+
+export type PlanLimits = {
+  planKey: string | null;
+  planName: string;
+  isAdmin: boolean;
   listingsUsed: number;
-  listingsLimit: number;
-  listingsRemaining: number;
+  /** null = unlimited */
+  listingsLimit: number | null;
+  listingsRemaining: number | null;
+  canCreate: boolean;
+  listingMessage?: string;
   featuredUsed: number;
-  featuredLimit: number;
-  featuredRemaining: number;
-  currentPlan: string;
-  message?: string;
+  /** null = unlimited */
+  featuredLimit: number | null;
+  featuredRemaining: number | null;
+  canFeatureFree: boolean;
   featuredMessage?: string;
+  listingDurationDays: number;
 };
 
-export async function checkListingLimits(): Promise<ListingLimitCheckResult> {
-  try {
-    const supabase = await createClient();
-
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return {
-        canCreate: false,
-        canFeature: false,
-        listingsUsed: 0,
-        listingsLimit: 0,
-        listingsRemaining: 0,
-        featuredUsed: 0,
-        featuredLimit: 0,
-        featuredRemaining: 0,
-        currentPlan: "none",
-        message: "You must be logged in to create listings",
-      };
-    }
-
-    // Get user's subscription plan
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role, subscription_plans(key, monthly_listing_quota, monthly_featured_quota)")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile || !profile.subscription_plans) {
-      return {
-        canCreate: false,
-        canFeature: false,
-        listingsUsed: 0,
-        listingsLimit: 0,
-        listingsRemaining: 0,
-        featuredUsed: 0,
-        featuredLimit: 0,
-        featuredRemaining: 0,
-        currentPlan: "none",
-        message: "Unable to load your subscription plan",
-      };
-    }
-
-    const plan = profile.subscription_plans as any;
-
-    // Admins have unlimited listings and featured listings
-    if ((profile as any)?.role === "admin") {
-      return {
-        canCreate: true,
-        canFeature: true,
-        listingsUsed: 0,
-        listingsLimit: -1, // -1 = unlimited
-        listingsRemaining: -1,
-        featuredUsed: 0,
-        featuredLimit: -1,
-        featuredRemaining: -1,
-        currentPlan: "Admin (Unlimited)",
-        message: undefined,
-      };
-    }
-
-    // Count current month's listings (live count, same approach as checkListingQuota in listings.ts)
-    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-    const { count: listingsCount } = await supabase
-      .from("listings")
-      .select("id", { count: "exact", head: true })
-      .eq("seller_id", user.id)
-      .gte("created_at", startOfMonth);
-
-    // Count current month's featured listings (quota counts every feature action taken this month)
-    // Uses same logic as featureListingAction: counts by featured_at, not by current featured status
-    const { count: featuredCount } = await supabase
-      .from("listings")
-      .select("id", { count: "exact", head: true })
-      .eq("seller_id", user.id)
-      .gte("featured_at", startOfMonth);
-
-    const listingsUsed = listingsCount || 0;
-    const featuredUsed = featuredCount || 0;
-    const listingsLimit = plan.monthly_listing_quota || -1; // -1 = unlimited
-    const featuredLimit = plan.monthly_featured_quota || -1;
-
-    // Calculate remaining
-    const listingsRemaining = listingsLimit === -1 ? -1 : Math.max(0, listingsLimit - listingsUsed);
-    const featuredRemaining = featuredLimit === -1 ? -1 : Math.max(0, featuredLimit - featuredUsed);
-
-    // Check if can create
-    const canCreate =
-      listingsLimit === -1 || listingsUsed < listingsLimit;
-    const canFeature =
-      featuredLimit !== 0 && (featuredLimit === -1 || featuredUsed < featuredLimit);
-
-    let message: string | undefined;
-    if (!canCreate) {
-      message = `You've reached your monthly limit of ${listingsLimit} listings. Upgrade your plan to continue.`;
-    }
-
-    let featuredMessage: string | undefined;
-    if (!canFeature) {
-      if (featuredLimit === 0) {
-        featuredMessage = "Your plan doesn't support featured listings. Upgrade to Pro or above.";
-      } else {
-        featuredMessage = `You've reached your monthly featured listing limit. Upgrade your plan for more.`;
-      }
-    }
-
-    return {
-      canCreate,
-      canFeature,
-      listingsUsed,
-      listingsLimit: listingsLimit === -1 ? 999 : listingsLimit,
-      listingsRemaining,
-      featuredUsed,
-      featuredLimit: featuredLimit === -1 ? 999 : featuredLimit,
-      featuredRemaining,
-      currentPlan: plan.key,
-      message,
-      featuredMessage,
-    };
-  } catch (error) {
-    console.error("Error checking listing limits:", error);
-    return {
-      canCreate: false,
-      canFeature: false,
-      listingsUsed: 0,
-      listingsLimit: 0,
-      listingsRemaining: 0,
-      featuredUsed: 0,
-      featuredLimit: 0,
-      featuredRemaining: 0,
-      currentPlan: "none",
-      message: "Error checking your limits. Please try again.",
-    };
-  }
+function startOfCurrentMonthISO() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 }
 
-export async function incrementListingUsage(isFeatured: boolean = false): Promise<void> {
-  const supabase = await createClient();
+/**
+ * Resolve a user's quota state. Pass an admin/service client when calling from a
+ * context where RLS would hide what we need to count.
+ */
+export async function getPlanLimits(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<PlanLimits> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select(
+      "role, subscription_plan_id, subscription_plans(key, name, monthly_listing_quota, monthly_featured_quota, listing_duration_days)"
+    )
+    .eq("id", userId)
+    .single();
 
+  const isAdmin = (profile as any)?.role === "admin";
+  const plan = (profile as any)?.subscription_plans as
+    | {
+        key: string;
+        name: string;
+        monthly_listing_quota: number | null;
+        monthly_featured_quota: number | null;
+        listing_duration_days: number | null;
+      }
+    | null;
+
+  // Count slots currently occupied.
+  const { count: listingsUsedRaw } = await supabase
+    .from("listings")
+    .select("id", { count: "exact", head: true })
+    .eq("seller_id", userId)
+    .in("status", SLOT_CONSUMING_STATUSES as unknown as string[]);
+  const listingsUsed = listingsUsedRaw ?? 0;
+
+  // Count feature *events* this month, not listings carrying a featured_at.
+  // Counting listings meant re-featuring the same listing twice consumed a single
+  // slot, and overwriting featured_at moved the count between months.
+  const { count: featuredUsedRaw } = await supabase
+    .from("listing_feature_purchases")
+    .select("id", { count: "exact", head: true })
+    .eq("seller_id", userId)
+    .eq("source", "plan")
+    .neq("status", "failed")
+    .gte("created_at", startOfCurrentMonthISO());
+  const featuredUsed = featuredUsedRaw ?? 0;
+
+  // Every profile now references a plan (migration 0071). This fallback only
+  // covers a transient lookup failure, so it uses the free-tier cap rather than
+  // the more generous 60 days the old code assumed.
+  const listingDurationDays = plan?.listing_duration_days ?? 30;
+
+  // Admins are unlimited on both axes.
+  if (isAdmin) {
+    return {
+      planKey: plan?.key ?? null,
+      planName: plan?.name ?? "Admin",
+      isAdmin: true,
+      listingsUsed,
+      listingsLimit: null,
+      listingsRemaining: null,
+      canCreate: true,
+      featuredUsed,
+      featuredLimit: null,
+      featuredRemaining: null,
+      canFeatureFree: true,
+      listingDurationDays,
+    };
+  }
+
+  // A user with no resolvable plan is treated as the free tier rather than
+  // unlimited. The old code branched both ways depending on which copy ran.
+  const listingsLimit = plan ? plan.monthly_listing_quota : 5;
+  const featuredLimit = plan ? plan.monthly_featured_quota : 0;
+  const planName = plan?.name ?? "Normal";
+
+  const listingsRemaining =
+    listingsLimit === null ? null : Math.max(0, listingsLimit - listingsUsed);
+  const canCreate = listingsLimit === null || listingsUsed < listingsLimit;
+
+  const featuredRemaining =
+    featuredLimit === null ? null : Math.max(0, featuredLimit - featuredUsed);
+  const canFeatureFree = featuredLimit === null || featuredUsed < featuredLimit;
+
+  return {
+    planKey: plan?.key ?? null,
+    planName,
+    isAdmin: false,
+    listingsUsed,
+    listingsLimit,
+    listingsRemaining,
+    canCreate,
+    listingMessage: canCreate
+      ? undefined
+      : `You have ${listingsUsed} of your ${listingsLimit} listing slots in use on the ${planName} plan. Archive or delete a listing, or upgrade on the Plan page.`,
+    featuredUsed,
+    featuredLimit,
+    featuredRemaining,
+    canFeatureFree,
+    featuredMessage: canFeatureFree
+      ? undefined
+      : featuredLimit === 0
+        ? `The ${planName} plan doesn't include featured listings.`
+        : `You've used all ${featuredLimit} featured boosts included with the ${planName} plan this month.`,
+    listingDurationDays,
+  };
+}
+
+/** Convenience wrapper for the signed-in user, for use in server components. */
+export async function checkListingLimits(): Promise<PlanLimits | null> {
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  if (!user) return;
-
-  const currentMonth = new Date().toISOString().split("T")[0].substring(0, 7);
-  const monthYear = `${currentMonth}-01`;
-
-  // Upsert usage record
-  await supabase.from("user_monthly_usage").upsert(
-    {
-      user_id: user.id,
-      month_year: monthYear,
-      listings_created: 1,
-      featured_listings_created: isFeatured ? 1 : 0,
-    },
-    {
-      onConflict: "user_id,month_year",
-    }
-  );
+  if (!user) return null;
+  return getPlanLimits(supabase, user.id);
 }

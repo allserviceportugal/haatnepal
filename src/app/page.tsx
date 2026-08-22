@@ -38,6 +38,19 @@ const benefits = [
   { title: "Nepal-first categories", text: "Tailored for vehicles, properties, jobs, agriculture, and small business needs." },
 ];
 
+const heroHeadline = [
+  ["विज्ञापनदेखि", "किनबेचसम्म", "—"],
+  ["सबै", "एकै", "ठाउँमा।"],
+];
+
+const heroVerbs = [
+  "खोज्नुहोस्",
+  "विज्ञापन गर्नुहोस्",
+  "किन्नुहोस्",
+  "बेच्नुहोस्",
+  "मोलमोलाइ गर्नुहोस्",
+];
+
 const stats = [
   { value: "120K+", label: "active buyers" },
   { value: "32K+", label: "new listings" },
@@ -93,22 +106,69 @@ export default async function Home() {
         </div>
       )}
 
-      <section className="grid gap-0 overflow-hidden rounded-md bg-gradient-to-r from-orange-600 to-orange-500 text-white sm:grid-cols-2 sm:min-h-[300px]">
-        <div className="flex flex-col justify-center gap-4 px-6 py-10 sm:px-10">
-          <span className="inline-flex w-fit items-center rounded bg-white/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide">
-            Nepal&apos;s marketplace
+      <section className="grid gap-0 overflow-hidden rounded-md bg-gradient-to-r from-orange-600 to-orange-500 text-white sm:grid-cols-2 sm:min-h-[360px]">
+        <div className="font-devanagari flex min-w-0 flex-col justify-center gap-4 px-6 py-10 sm:px-10">
+          <span
+            className="hero-anim inline-flex w-fit items-center rounded bg-white/15 px-2.5 py-1 text-xs font-bold tracking-wide"
+            style={{ animationDelay: "60ms" }}
+          >
+            नेपालको आफ्नै बजार
           </span>
-          <h1 className="max-w-md text-3xl font-black leading-tight sm:text-4xl">
-            Buy, sell, and negotiate — all in one place.
+
+          <h1 className="max-w-md text-[27px] font-extrabold leading-[1.38] sm:text-[38px] sm:leading-[1.34]">
+            {heroHeadline.map((line, lineIndex) => {
+              const offset = heroHeadline
+                .slice(0, lineIndex)
+                .reduce((count, words) => count + words.length, 0);
+              return (
+                <span key={lineIndex} className="flex flex-wrap gap-x-[0.3em]">
+                  {line.map((word, wordIndex) => {
+                    const i = offset + wordIndex;
+                    return (
+                      <span
+                        key={`${word}-${i}`}
+                        className="hero-word"
+                        style={{ animationDelay: `${120 + i * 90}ms, ${2400 + i * 450}ms` }}
+                      >
+                        {word}
+                      </span>
+                    );
+                  })}
+                </span>
+              );
+            })}
           </h1>
-          <p className="max-w-md text-sm text-orange-50">
-            Classifieds, business listings, and courier delivery built for Nepal.
-          </p>
+
+          <div className="hero-rule h-[3px] w-[88px] rounded-sm bg-[#ffd9a0]" />
+
+          <div className="hero-belt-mask hero-anim w-full min-w-0" style={{ animationDelay: "840ms" }}>
+            <div className="hero-belt">
+              {[0, 1].map((copy) => (
+                <div
+                  key={copy}
+                  aria-hidden={copy === 1}
+                  className="flex items-center gap-4 pr-4"
+                >
+                  {heroVerbs.map((verb) => (
+                    <span
+                      key={verb}
+                      className="inline-flex items-center gap-4 whitespace-nowrap text-[15px] font-bold text-[#ffd9a0] sm:text-[17px]"
+                    >
+                      {verb}
+                      <span className="text-[11px] text-orange-100/40 sm:text-xs">◆</span>
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+
           <Link
             href="/listing/new"
-            className="mt-2 inline-flex w-fit items-center rounded-md bg-white px-5 py-2.5 text-sm font-bold text-orange-600 transition hover:bg-orange-50"
+            className="hero-anim mt-1 inline-flex w-fit items-center rounded-md bg-white px-5 py-3 text-[15px] font-bold text-orange-600 transition hover:bg-orange-50"
+            style={{ animationDelay: "960ms" }}
           >
-            Start selling
+            बेच्न सुरु गर्नुहोस्
           </Link>
         </div>
         <div className="relative w-full min-h-[220px] sm:min-h-full">

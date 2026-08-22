@@ -36,6 +36,8 @@ export type ListingFilters = {
   limit?: number;
   /** attribute id -> selected value, ANDed together */
   attributeFilters?: Record<string, string>;
+  /** Only listings whose featured window is still open. */
+  featuredOnly?: boolean;
 };
 
 async function resolveCategoryIds(supabase: SupabaseClient, slug: string): Promise<string[] | null> {
@@ -97,7 +99,11 @@ export async function getListings(
   let query = supabase
     .from("listings")
     .select(LISTING_SELECT)
-    .eq("status", "active");
+    .eq("status", "active").or("expires_at.is.null,expires_at.gt." + new Date().toISOString());
+
+  if (filters.featuredOnly) {
+    query = query.not("featured_until", "is", null).gt("featured_until", new Date().toISOString());
+  }
 
   if (filters.categorySlug) {
     const categoryIds = await resolveCategoryIds(supabase, filters.categorySlug);
@@ -227,19 +233,23 @@ export async function getListingById(supabase: SupabaseClient, id: string) {
   const { data, error } = await supabase.from("listings").select(LISTING_SELECT).eq("id", id).single();
   if (error) return null;
 
-  // Lazy expiry check: if listing is active and past expiry, mark as expired
-  // This ensures correctness even if pg_cron is delayed
+  // Fallback for the window between pg_cron runs (archive-expired-listings runs
+  // every 15 minutes). The write only succeeds for the owner under RLS, so treat
+  // it as best-effort and rely on the local flag for what this request renders.
   if (
     data.status === "active" &&
     data.expires_at &&
     new Date(data.expires_at) < new Date()
   ) {
-    await supabase
+    const { error: archiveError } = await supabase
       .from("listings")
-      .update({ status: "expired", status_reason: "auto: lazily detected on read" })
+      .update({ status: "archived", status_reason: "auto: expired, detected on read" })
       .eq("id", id);
-    // Update the local object to reflect the change
-    data.status = "expired";
+
+    if (archiveError) {
+      console.log("[LISTING] Lazy archive skipped:", archiveError.message);
+    }
+    data.status = "archived";
   }
 
   const listing = data as unknown as ListingWithRelations;
@@ -353,6 +363,7 @@ export async function getFeaturedListings(
     .from("listings")
     .select(LISTING_SELECT)
     .eq("status", "active")
+    .or("expires_at.is.null,expires_at.gt." + new Date().toISOString())
     .not("featured_until", "is", null)
     .gt("featured_until", new Date().toISOString())
     .order("featured_at", { ascending: false })
@@ -382,6 +393,7 @@ export async function getPopularListings(
     .from("listings")
     .select(LISTING_SELECT)
     .eq("status", "active")
+    .or("expires_at.is.null,expires_at.gt." + new Date().toISOString())
     .gt("view_count", 0)
     .order("view_count", { ascending: false })
     .limit(limit);
@@ -436,7 +448,7 @@ export async function getTopSellingListings(
     .from("listings")
     .select(LISTING_SELECT)
     .in("id", topListingIds)
-    .eq("status", "active");
+    .eq("status", "active").or("expires_at.is.null,expires_at.gt." + new Date().toISOString());
 
   if (listingError) {
     console.error("getTopSellingListings - fetch listings error:", listingError.message);

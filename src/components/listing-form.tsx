@@ -12,6 +12,11 @@ type Props = {
   categoryAttributes: CategoryAttribute[];
   couriers: DeliveryCourier[];
   userId: string;
+  /** Durations the seller may pick from, capped by their plan. Omit to hide. */
+  durationOptions?: number[];
+  defaultDurationDays?: number;
+  /** Show the "feature this listing" option inline (create flow only). */
+  featureOption?: { canFeatureFree: boolean; featuredMessage?: string };
   defaultValues?: Partial<Listing> & {
     attributeValues?: Record<string, string>;
     courierIds?: string[];
@@ -25,6 +30,9 @@ export function ListingForm({
   categoryAttributes,
   couriers,
   userId,
+  durationOptions,
+  defaultDurationDays,
+  featureOption,
   defaultValues,
   submitLabel,
 }: Props) {
@@ -1261,6 +1269,51 @@ export function ListingForm({
           </div>
         </div>
       </div>
+
+      {durationOptions && durationOptions.length > 0 && (
+        <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div>
+            <label htmlFor="durationDays" className="block text-sm font-semibold text-slate-700">
+              How long should this listing run?
+            </label>
+            <p className="mt-1 text-xs text-slate-500">
+              When it ends the listing is archived, not deleted — you can republish it any time
+              from My Listings. Longer durations are available on higher plans.
+            </p>
+            <select
+              id="durationDays"
+              name="durationDays"
+              defaultValue={String(defaultDurationDays ?? durationOptions[durationOptions.length - 1])}
+              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100 sm:w-64"
+            >
+              {durationOptions.map((d) => (
+                <option key={d} value={d}>
+                  {d} days
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {featureOption && (
+            <div className="border-t border-slate-200 pt-3">
+              {featureOption.canFeatureFree ? (
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input type="checkbox" name="featureNow" className="mt-1 h-4 w-4 rounded border-slate-300" />
+                  <span className="text-sm text-slate-700">
+                    <span className="font-semibold">Feature this listing for 14 days</span> — included
+                    with your plan. Featured listings appear at the top of search and on the homepage.
+                  </span>
+                </label>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  {featureOption.featuredMessage ?? "No featured boosts remaining on your plan."}{" "}
+                  You can add a paid boost from the listing page after publishing.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-semibold text-slate-700">Photos</label>

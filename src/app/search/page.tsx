@@ -13,6 +13,7 @@ type SearchParams = {
   minPrice?: string;
   maxPrice?: string;
   sort?: string;
+  featured?: string;
   [key: string]: string | undefined;
 };
 
@@ -41,12 +42,19 @@ export default async function SearchPage({
     minPrice: sp.minPrice ? Number(sp.minPrice) : undefined,
     maxPrice: sp.maxPrice ? Number(sp.maxPrice) : undefined,
     sort: sp.sort === "price_asc" || sp.sort === "price_desc" ? sp.sort : "newest",
+    // The homepage "See all" link points at /search?featured=true; this param was
+    // previously never read, so the link silently returned unfiltered results.
+    featuredOnly: sp.featured === "true",
   });
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <h1 className="text-3xl font-black text-slate-900">
-        {sp.q ? `Results for "${sp.q}"` : "Search listings"}
+        {sp.featured === "true"
+          ? "Featured listings"
+          : sp.q
+            ? `Results for "${sp.q}"`
+            : "Search listings"}
       </h1>
       <p className="mt-2 text-slate-600">
         {listings.length} active listing{listings.length === 1 ? "" : "s"}

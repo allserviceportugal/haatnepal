@@ -71,9 +71,19 @@ export function ListingCard({
             </span>
           )}
         </div>
-        {listing.status === "sold" && (
-          <span className="absolute inset-x-2 bottom-2 rounded bg-slate-900/90 px-1.5 py-0.5 text-center text-[10px] font-bold uppercase tracking-wide text-white">
-            Sold
+        {listing.status !== "active" && (
+          <span
+            className={`absolute inset-x-2 bottom-2 rounded px-1.5 py-0.5 text-center text-[10px] font-bold uppercase tracking-wide text-white ${
+              listing.status === "sold"
+                ? "bg-slate-900/90"
+                : listing.status === "archived" || listing.status === "expired"
+                  ? "bg-amber-600/90"
+                  : "bg-slate-500/90"
+            }`}
+          >
+            {listing.status === "archived" || listing.status === "expired"
+              ? "Archived"
+              : listing.status}
           </span>
         )}
       </div>

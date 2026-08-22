@@ -39,7 +39,7 @@ export default function FAQPage() {
         },
         {
           q: "What payment methods are accepted?",
-          a: "We accept eSewa, Khalti, bank transfers, and Cash on Delivery (COD) where available. All payments are processed securely through Haat Nepal."
+          a: "Buyers and sellers arrange payment directly — commonly Cash on Delivery, bank transfer, eSewa or Khalti. Haat Nepal does not process or hold payments, so always follow our Safety Tips and confirm goods before paying."
         },
         {
           q: "What if I receive a damaged or wrong item?",
@@ -159,7 +159,7 @@ export default function FAQPage() {
         },
         {
           q: "How long does a listing stay active?",
-          a: "Listings stay active for 90 days, then expire. You can re-list or renew anytime. Sold items are marked 'Sold' and archived."
+          a: "You choose the duration when you post — up to 30 days on the free plans, 60 on Plus, 90 on Pro and 365 on Premium. When it ends the listing is archived rather than deleted, and you can republish it any time from My Listings as long as you have a free listing slot. Sold items are marked 'Sold'."
         },
         {
           q: "Can I list items across multiple categories?",

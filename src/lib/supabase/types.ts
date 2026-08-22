@@ -1,6 +1,6 @@
 export type ListingCondition = "new" | "used" | "not_applicable";
 export type ListingType = "classified" | "fixed_price";
-export type ListingStatus = "draft" | "active" | "sold" | "expired" | "removed";
+export type ListingStatus = "draft" | "active" | "sold" | "expired" | "archived" | "removed";
 export type AccountType = "individual" | "business";
 export type SubscriptionTier = "normal" | "business" | "plus" | "pro" | "premium" | "custom";
 export type AttributeInputType = "text" | "number" | "select" | "boolean";
